@@ -1,0 +1,259 @@
+'use client';
+
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
+
+export type ReviewCourseItem = {
+  id: string;
+  title: string;
+  priceRub: number;
+};
+
+type Step4ReviewProps = {
+  values: {
+    firstName: string;
+    surname: string;
+    email: string;
+    dateOfBirth: string;
+    addressLine: string;
+    country: string;
+    phoneNumber: string;
+    educationHistory: string;
+    englishLevel: string;
+    currentTeachingRole: string;
+    teachingExperience: string;
+    confirmedIdDocumentAttached: boolean;
+    personalStatement: string;
+    taskAnswerA: string;
+    taskAnswerB: string;
+    taskAnswerC: string;
+    consentPersonalData: boolean;
+    consentTerms: boolean;
+    reviewNotes?: string;
+  };
+  selectedCourses: ReviewCourseItem[];
+  totalPriceRub: number;
+  onChange: (key: string, value: any) => void;
+};
+
+function formatPrice(priceRub: number) {
+  if (!priceRub || priceRub <= 0) return 'Цена уточняется';
+  return new Intl.NumberFormat('ru-RU').format(priceRub) + ' ₽';
+}
+
+function displayValue(value?: string | null) {
+  if (!value || !value.trim()) return '—';
+  return value;
+}
+
+function ReviewItem({
+  label,
+  value,
+}: {
+  label: string;
+  value?: string | null;
+}) {
+  return (
+    <div className="grid min-w-0 gap-1 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+      <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+        {label}
+      </span>
+      <span className="break-words text-sm leading-6 text-slate-900">
+        {displayValue(value)}
+      </span>
+    </div>
+  );
+}
+
+function AgreementCard({
+  checked,
+  onChange,
+  children,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="flex min-w-0 items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+      <Checkbox
+        checked={checked}
+        onChange={(e) => onChange(e.currentTarget.checked)}
+        className="mt-0.5 h-5 w-5 shrink-0 rounded border-slate-400 text-slate-900"
+      />
+      <span className="min-w-0 break-words text-sm leading-6 text-slate-800">
+        {children}
+      </span>
+    </label>
+  );
+}
+
+export default function Step4Review({
+  values,
+  selectedCourses,
+  totalPriceRub,
+  onChange,
+}: Step4ReviewProps) {
+  const policyLink = process.env.NEXT_PUBLIC_TEACHERS_POLICY_PDF_URL;
+  const termsLink = process.env.NEXT_PUBLIC_TEACHERS_TERMS_PDF_URL;
+
+  return (
+    <div className="space-y-6">
+      <div className="overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.10)]">
+        <div className="border-b border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 px-6 py-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+            Final Step
+          </p>
+          <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+            Review your application
+          </h2>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+            Please check your personal details, selected courses and final
+            information carefully before submission.
+          </p>
+        </div>
+
+        <div className="grid gap-6 p-6 xl:grid-cols-[1.15fr_0.85fr]">
+          <div className="min-w-0 space-y-6">
+            <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-5">
+              <h3 className="text-lg font-semibold text-slate-950">
+                SECTION A: Your Details
+              </h3>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <ReviewItem label="First name(s)" value={values.firstName} />
+                <ReviewItem label="Surname" value={values.surname} />
+                <ReviewItem label="Date of birth" value={values.dateOfBirth} />
+                <ReviewItem label="Email" value={values.email} />
+                <ReviewItem label="Address" value={values.addressLine} />
+                <ReviewItem label="Country" value={values.country} />
+                <ReviewItem label="Phone number" value={values.phoneNumber} />
+                <ReviewItem label="English level" value={values.englishLevel} />
+                <ReviewItem
+                  label="Current teaching role"
+                  value={values.currentTeachingRole}
+                />
+                <ReviewItem
+                  label="Document attached"
+                  value={values.confirmedIdDocumentAttached ? 'Yes' : 'No'}
+                />
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-5">
+              <h3 className="text-lg font-semibold text-slate-950">
+                Comment to the application
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                You can leave an optional comment for the team.
+              </p>
+
+              <div className="mt-4">
+                <Textarea
+                  rows={5}
+                  value={values.reviewNotes || ''}
+                  onChange={(e) => onChange('reviewNotes', e.target.value)}
+                  placeholder="Write an optional comment"
+                  className="min-h-[150px] border-slate-300 text-slate-900 placeholder:text-slate-400"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="min-w-0 space-y-6">
+            <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-5">
+              <h3 className="text-lg font-semibold text-slate-950">
+                SECTION B: Selected Courses
+              </h3>
+
+              <div className="mt-4 space-y-3">
+                {selectedCourses.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-5 text-sm text-slate-500">
+                    No courses selected yet.
+                  </div>
+                ) : (
+                  selectedCourses.map((course) => (
+                    <div
+                      key={course.id}
+                      className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0 break-words text-sm leading-6 text-slate-900">
+                          {course.title}
+                        </div>
+                        <div className="shrink-0 text-sm font-semibold text-slate-950">
+                          {formatPrice(course.priceRub)}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="mt-4 rounded-2xl bg-slate-950 px-5 py-5 text-white shadow-lg">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-slate-300">Total price</span>
+                  <span className="text-2xl font-semibold">
+                    {formatPrice(totalPriceRub)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-5">
+              <h3 className="text-lg font-semibold text-slate-950">
+                Agreements and confirmations
+              </h3>
+
+              <div className="mt-4 space-y-4">
+                <AgreementCard
+                  checked={!!values.consentPersonalData}
+                  onChange={(checked) =>
+                    onChange('consentPersonalData', checked)
+                  }
+                >
+                  I agree to the{' '}
+                  <a
+                    href={policyLink || '#'}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="break-words font-medium text-slate-950 underline underline-offset-4"
+                  >
+                    processing of personal data
+                  </a>
+                  .
+                </AgreementCard>
+
+                <AgreementCard
+                  checked={!!values.consentTerms}
+                  onChange={(checked) => onChange('consentTerms', checked)}
+                >
+                  I accept the{' '}
+                  <a
+                    href={termsLink || '#'}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="break-words font-medium text-slate-950 underline underline-offset-4"
+                  >
+                    terms and conditions
+                  </a>
+                  .
+                </AgreementCard>
+
+                <AgreementCard
+                  checked={!!values.confirmedIdDocumentAttached}
+                  onChange={(checked) =>
+                    onChange('confirmedIdDocumentAttached', checked)
+                  }
+                >
+                  I confirm that the required identification document has been
+                  attached.
+                </AgreementCard>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
