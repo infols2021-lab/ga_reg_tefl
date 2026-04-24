@@ -21,24 +21,27 @@ export async function POST(req: Request) {
 
     const supabase = createServerSupabaseClient();
 
-    // Шаг 1: обновление личных данных
     if (body.step === 1) {
+      const updates: any = {
+        candidate_first_name: body.data?.candidateFirstName,
+        candidate_surname: body.data?.candidateSurname,
+        date_of_birth: body.data?.dateOfBirth,
+        guardian_first_name: body.data?.guardianFirstName,
+        guardian_surname: body.data?.guardianSurname,
+        email: body.data?.email,
+        phone_number: body.data?.phone,
+      };
+      if (body.data?.examLocationId !== undefined) {
+        updates.exam_location_id = body.data.examLocationId;
+      }
+
       const { error } = await supabase
         .from('primary_application_details')
-        .update({
-          candidate_first_name: body.data?.candidateFirstName,
-          candidate_surname: body.data?.candidateSurname,
-          date_of_birth: body.data?.dateOfBirth,
-          guardian_first_name: body.data?.guardianFirstName,
-          guardian_surname: body.data?.guardianSurname,
-          email: body.data?.email,
-          phone_number: body.data?.phone,
-        })
+        .update(updates)
         .eq('application_id', body.applicationId);
 
       if (error) throw error;
 
-      // Синхронизируем email и телефон с applications
       const { error: appUpdateError } = await supabase
         .from('applications')
         .update({
@@ -53,9 +56,7 @@ export async function POST(req: Request) {
       if (appUpdateError) throw appUpdateError;
     }
 
-    // Шаг 2: курсы и документы
     if (body.step === 2) {
-      // Обновление выбранных курсов
       const { error: deleteError } = await supabase
         .from('primary_application_selected_courses')
         .delete()
@@ -68,15 +69,12 @@ export async function POST(req: Request) {
           application_id: body.applicationId,
           course_id: id,
         }));
-
         const { error } = await supabase
           .from('primary_application_selected_courses')
           .insert(rows);
-
         if (error) throw error;
       }
 
-      // Флаг подтверждения загрузки документа
       const { error } = await supabase
         .from('applications')
         .update({
@@ -88,7 +86,6 @@ export async function POST(req: Request) {
       if (error) throw error;
     }
 
-    // Шаг 3: review (согласия, заметки)
     if (body.step === 3) {
       const { error } = await supabase
         .from('applications')
@@ -102,13 +99,10 @@ export async function POST(req: Request) {
 
       if (error) throw error;
 
-      // Если есть поле review_notes, сохраним его в деталях
       if (body.data?.reviewNotes !== undefined) {
         const { error: notesError } = await supabase
           .from('primary_application_details')
-          .update({
-            review_notes: body.data.reviewNotes,
-          })
+          .update({ review_notes: body.data.reviewNotes })
           .eq('application_id', body.applicationId);
 
         if (notesError) throw notesError;
@@ -119,10 +113,7 @@ export async function POST(req: Request) {
   } catch (e: any) {
     console.error(e);
     return NextResponse.json(
-      {
-        ok: false,
-        error: { message: e.message || 'Ошибка обновления' },
-      },
+      { ok: false, error: { message: e.message || 'Ошибка обновления' } },
       { status: 500 }
     );
   }

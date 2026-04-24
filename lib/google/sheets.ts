@@ -59,7 +59,7 @@ async function appendRow(
   });
 }
 
-// --- Teacher export ---
+// --- Teacher export (без изменений) ---
 
 export async function exportTeacherApplicationToSheets(applicationId: string) {
   const supabase = createServerSupabaseClient();
@@ -180,7 +180,7 @@ export async function exportTeacherApplicationToSheets(applicationId: string) {
   await appendRow(spreadsheetId, sheetName, row);
 }
 
-// --- Primary School export ---
+// --- Primary School export (с площадкой) ---
 
 export async function exportPrimarySchoolApplicationToSheets(applicationId: string) {
   const supabase = createServerSupabaseClient();
@@ -200,13 +200,25 @@ export async function exportPrimarySchoolApplicationToSheets(applicationId: stri
   const { data: details, error: detailsError } = await supabase
     .from('primary_application_details')
     .select(
-      `candidate_first_name, candidate_surname, date_of_birth, guardian_first_name, guardian_surname, email, phone_number, review_notes`
+      `candidate_first_name, candidate_surname, date_of_birth, guardian_first_name, guardian_surname, email, phone_number, review_notes, exam_location_id`
     )
     .eq('application_id', applicationId)
     .single();
 
   if (detailsError || !details) {
     throw new Error('Не удалось получить детали заявки для Google Sheets.');
+  }
+
+  let examLocationText = '';
+  if (details.exam_location_id) {
+    const { data: location } = await supabase
+      .from('exam_locations')
+      .select('city, exam_date')
+      .eq('id', details.exam_location_id)
+      .single();
+    if (location) {
+      examLocationText = `${location.city}, ${location.exam_date}`;
+    }
   }
 
   const { data: selectedCourses, error: selectedCoursesError } = await supabase
@@ -253,6 +265,7 @@ export async function exportPrimarySchoolApplicationToSheets(applicationId: stri
     toCellValue(`${details.guardian_first_name} ${details.guardian_surname}`),
     toCellValue(details.email),
     toCellValue(details.phone_number),
+    toCellValue(examLocationText), // <-- площадка добавлена
     toCellValue(selectedCoursesText),
     toCellValue(formatBool(application.confirmed_id_document_attached)),
     toCellValue(uploadedFilesText),
@@ -264,12 +277,12 @@ export async function exportPrimarySchoolApplicationToSheets(applicationId: stri
     toCellValue(application.created_at),
   ];
 
-  const spreadsheetId = getEnv('GOOGLE_SHEETS_TEACHERS_SPREADSHEET_ID'); // общая таблица
+  const spreadsheetId = getEnv('GOOGLE_SHEETS_TEACHERS_SPREADSHEET_ID');
   const sheetName = getEnv('GOOGLE_SHEETS_PRIMARY_SHEET_NAME');
   await appendRow(spreadsheetId, sheetName, row);
 }
 
-// --- Secondary School export ---
+// --- Secondary School export (с площадкой) ---
 
 export async function exportSecondarySchoolApplicationToSheets(applicationId: string) {
   const supabase = createServerSupabaseClient();
@@ -289,13 +302,25 @@ export async function exportSecondarySchoolApplicationToSheets(applicationId: st
   const { data: details, error: detailsError } = await supabase
     .from('secondary_application_details')
     .select(
-      `candidate_first_name, candidate_surname, date_of_birth, guardian_first_name, guardian_surname, email, phone_number, review_notes`
+      `candidate_first_name, candidate_surname, date_of_birth, guardian_first_name, guardian_surname, email, phone_number, review_notes, exam_location_id`
     )
     .eq('application_id', applicationId)
     .single();
 
   if (detailsError || !details) {
     throw new Error('Не удалось получить детали заявки для Google Sheets.');
+  }
+
+  let examLocationText = '';
+  if (details.exam_location_id) {
+    const { data: location } = await supabase
+      .from('exam_locations')
+      .select('city, exam_date')
+      .eq('id', details.exam_location_id)
+      .single();
+    if (location) {
+      examLocationText = `${location.city}, ${location.exam_date}`;
+    }
   }
 
   const { data: selectedCourses, error: selectedCoursesError } = await supabase
@@ -342,6 +367,7 @@ export async function exportSecondarySchoolApplicationToSheets(applicationId: st
     toCellValue(`${details.guardian_first_name} ${details.guardian_surname}`),
     toCellValue(details.email),
     toCellValue(details.phone_number),
+    toCellValue(examLocationText), // <-- площадка добавлена
     toCellValue(selectedCoursesText),
     toCellValue(formatBool(application.confirmed_id_document_attached)),
     toCellValue(uploadedFilesText),

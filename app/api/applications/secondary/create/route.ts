@@ -5,7 +5,6 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // Шаг 1 обязательные поля (одинаковые с primary)
     if (
       !body.candidateFirstName ||
       !body.candidateSurname ||
@@ -13,10 +12,11 @@ export async function POST(req: Request) {
       !body.guardianFirstName ||
       !body.guardianSurname ||
       !body.email ||
-      !body.phone
+      !body.phone ||
+      !body.examLocationId
     ) {
       return NextResponse.json(
-        { ok: false, error: { message: 'Заполни все поля' } },
+        { ok: false, error: { message: 'Заполни все поля и выбери площадку' } },
         { status: 400 }
       );
     }
@@ -24,7 +24,6 @@ export async function POST(req: Request) {
     const supabase = createServerSupabaseClient();
     const fullName = `${body.candidateFirstName} ${body.candidateSurname}`;
 
-    // Вставка в applications
     const { data: app, error: appError } = await supabase
       .from('applications')
       .insert({
@@ -40,7 +39,6 @@ export async function POST(req: Request) {
 
     if (appError) throw appError;
 
-    // Вставка в secondary_application_details
     const { error: detailsError } = await supabase
       .from('secondary_application_details')
       .insert({
@@ -52,6 +50,7 @@ export async function POST(req: Request) {
         guardian_surname: body.guardianSurname,
         email: body.email,
         phone_number: body.phone,
+        exam_location_id: body.examLocationId,
       });
 
     if (detailsError) throw detailsError;
@@ -63,10 +62,7 @@ export async function POST(req: Request) {
   } catch (e: any) {
     console.error(e);
     return NextResponse.json(
-      {
-        ok: false,
-        error: { message: e.message || 'Ошибка создания заявки' },
-      },
+      { ok: false, error: { message: e.message || 'Ошибка создания заявки' } },
       { status: 500 }
     );
   }

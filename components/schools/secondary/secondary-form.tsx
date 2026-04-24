@@ -17,11 +17,17 @@ const schoolSteps = [
   { id: 4, title: 'Payment Instructions', shortTitle: 'Оплата' },
 ];
 
+type ExamLocation = {
+  id: string;
+  label: string;
+};
+
 export default function SecondaryForm() {
   const [step, setStep] = useState(0);
   const [applicationId, setApplicationId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [courses, setCourses] = useState<any[]>([]);
+  const [examLocations, setExamLocations] = useState<ExamLocation[]>([]);
 
   const [form, setForm] = useState<any>({
     candidateFirstName: '',
@@ -31,6 +37,7 @@ export default function SecondaryForm() {
     guardianSurname: '',
     email: '',
     phone: '',
+    examLocationId: '',
     selectedCourseIds: [],
     hasUploadedDocument: false,
     confirmedIdDocumentAttached: false,
@@ -60,7 +67,8 @@ export default function SecondaryForm() {
       form.guardianFirstName &&
       form.guardianSurname &&
       form.email &&
-      form.phone
+      form.phone &&
+      form.examLocationId
     );
   }
 
@@ -76,6 +84,12 @@ export default function SecondaryForm() {
     return form.consentPersonalData && form.consentTerms;
   }
 
+  async function fetchExamLocations() {
+    const res = await fetch('/api/exam-locations');
+    const json = await res.json();
+    if (json.ok) setExamLocations(json.data);
+  }
+
   async function fetchCourses() {
     const res = await fetch('/api/courses?program=secondary');
     const json = await res.json();
@@ -83,6 +97,7 @@ export default function SecondaryForm() {
   }
 
   useEffect(() => {
+    fetchExamLocations();
     fetchCourses();
   }, []);
 
@@ -114,7 +129,7 @@ export default function SecondaryForm() {
       if (!id) id = await createApp();
 
       if (step === 1) {
-        if (!validateStep1()) throw new Error('Заполни все поля');
+        if (!validateStep1()) throw new Error('Заполни все поля и выбери площадку');
         await update(id, 1);
         setStep(2);
       } else if (step === 2) {
@@ -170,7 +185,13 @@ export default function SecondaryForm() {
       {step > 0 && <FormProgress step={step} steps={schoolSteps} />}
 
       {step === 0 && <Step0Intro onStart={() => setStep(1)} />}
-      {step === 1 && <Step1Personal values={form} onChange={setField} />}
+      {step === 1 && (
+        <Step1Personal
+          values={form}
+          examLocations={examLocations}
+          onChange={setField}
+        />
+      )}
       {step === 2 && (
         <Step2CourseFiles
           applicationId={applicationId}
