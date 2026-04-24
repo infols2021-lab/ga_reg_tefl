@@ -1,8 +1,15 @@
-type FormProgressProps = {
-  step: number;
+type Step = {
+  id: number;
+  title: string;
+  shortTitle: string;
 };
 
-const steps = [
+type FormProgressProps = {
+  step: number;
+  steps?: Step[]; // опциональный набор шагов
+};
+
+const defaultSteps: Step[] = [
   { id: 1, title: 'Your Details', shortTitle: 'Детали' },
   { id: 2, title: 'Courses & Files', shortTitle: 'Курсы' },
   { id: 3, title: 'Statements', shortTitle: 'Ответы' },
@@ -10,7 +17,7 @@ const steps = [
   { id: 5, title: 'Payment Instructions', shortTitle: 'Оплата' },
 ];
 
-export default function FormProgress({ step }: FormProgressProps) {
+export default function FormProgress({ step, steps = defaultSteps }: FormProgressProps) {
   return (
     <div className="mb-8 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
       <div className="border-b border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 px-6 py-5">
@@ -21,13 +28,16 @@ export default function FormProgress({ step }: FormProgressProps) {
           Complete the teacher application step by step
         </h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          Please move through each section carefully before submitting your
-          application.
+          Please move through each section carefully before submitting your application.
         </p>
       </div>
 
       <div className="px-4 py-5 sm:px-6">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div
+          className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${
+            steps.length <= 4 ? 'xl:grid-cols-4' : 'xl:grid-cols-5'
+          }`}
+        >
           {steps.map((item) => {
             const isActive = step === item.id;
             const isCompleted = step > item.id;
@@ -44,7 +54,6 @@ export default function FormProgress({ step }: FormProgressProps) {
                     : 'border-slate-200 bg-white text-slate-500',
                 ].join(' ')}
               >
-                {/* КРУЖОК */}
                 <div className="absolute left-3 top-3">
                   <div
                     className={[
@@ -60,7 +69,6 @@ export default function FormProgress({ step }: FormProgressProps) {
                   </div>
                 </div>
 
-                {/* КОНТЕНТ */}
                 <div className="flex min-h-[100px] flex-col items-center justify-center text-center">
                   <div
                     className={[
@@ -78,17 +86,11 @@ export default function FormProgress({ step }: FormProgressProps) {
                   <div
                     className={[
                       'mt-2 text-[16px] font-semibold leading-6',
-                      isCompleted || isActive
-                        ? 'text-inherit'
-                        : 'text-slate-600',
+                      isCompleted || isActive ? 'text-inherit' : 'text-slate-600',
                     ].join(' ')}
                   >
-                    <span className="hidden xl:block break-words">
-                      {item.title}
-                    </span>
-                    <span className="block xl:hidden break-words">
-                      {item.shortTitle}
-                    </span>
+                    <span className="hidden xl:block break-words">{item.title}</span>
+                    <span className="block xl:hidden break-words">{item.shortTitle}</span>
                   </div>
                 </div>
               </div>

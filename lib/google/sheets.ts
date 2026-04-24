@@ -41,28 +41,25 @@ function formatAmountRub(amountKobo: number | null | undefined): number | string
   return Number((amountKobo / 100).toFixed(2));
 }
 
-export async function appendTeacherRow(
-  values: (string | number | boolean | null)[]
+async function appendRow(
+  spreadsheetId: string,
+  sheetName: string,
+  row: (string | number | boolean | null)[]
 ) {
   const auth = getAuth();
-
-  const sheets = google.sheets({
-    version: 'v4',
-    auth,
-  });
-
-  const spreadsheetId = getEnv('GOOGLE_SHEETS_TEACHERS_SPREADSHEET_ID');
-  const sheetName = getEnv('GOOGLE_SHEETS_TEACHERS_SHEET_NAME');
+  const sheets = google.sheets({ version: 'v4', auth });
 
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     range: `${sheetName}!A1`,
     valueInputOption: 'USER_ENTERED',
     requestBody: {
-      values: [values],
+      values: [row],
     },
   });
 }
+
+// --- Teacher export ---
 
 export async function exportTeacherApplicationToSheets(applicationId: string) {
   const supabase = createServerSupabaseClient();
@@ -70,34 +67,7 @@ export async function exportTeacherApplicationToSheets(applicationId: string) {
   const { data: application, error: applicationError } = await supabase
     .from('applications')
     .select(
-      `
-        id,
-        public_id,
-        program_type,
-        status,
-        payment_status,
-        payment_provider,
-        applicant_email,
-        applicant_phone,
-        applicant_full_name,
-        current_step,
-        is_completed,
-        consent_personal_data,
-        consent_terms,
-        confirmed_id_document_attached,
-        amount_kobo,
-        amount_currency,
-        payment_order_id,
-        payment_link,
-        payment_reference,
-        paid_at,
-        submitted_at,
-        source_system,
-        source_path,
-        taplink_button,
-        created_at,
-        updated_at
-      `
+      `id, public_id, program_type, status, payment_status, payment_provider, applicant_email, applicant_phone, applicant_full_name, current_step, is_completed, consent_personal_data, consent_terms, confirmed_id_document_attached, amount_kobo, amount_currency, payment_order_id, payment_link, payment_reference, paid_at, submitted_at, source_system, source_path, taplink_button, created_at, updated_at`
     )
     .eq('id', applicationId)
     .single();
@@ -109,24 +79,7 @@ export async function exportTeacherApplicationToSheets(applicationId: string) {
   const { data: details, error: detailsError } = await supabase
     .from('teacher_application_details')
     .select(
-      `
-        first_name,
-        surname,
-        date_of_birth,
-        email,
-        address_line,
-        country,
-        phone_number,
-        education_history,
-        english_level,
-        current_teaching_role,
-        teaching_experience,
-        personal_statement,
-        task_answer_a,
-        task_answer_b,
-        task_answer_c,
-        review_notes
-      `
+      `first_name, surname, date_of_birth, email, address_line, country, phone_number, education_history, english_level, current_teaching_role, teaching_experience, personal_statement, task_answer_a, task_answer_b, task_answer_c, review_notes`
     )
     .eq('application_id', applicationId)
     .single();
@@ -137,14 +90,7 @@ export async function exportTeacherApplicationToSheets(applicationId: string) {
 
   const { data: selectedCourses, error: selectedCoursesError } = await supabase
     .from('teacher_application_selected_courses')
-    .select(
-      `
-        title_snapshot,
-        unit_price_kobo,
-        quantity,
-        currency
-      `
-    )
+    .select(`title_snapshot, unit_price_kobo, quantity, currency`)
     .eq('application_id', applicationId)
     .order('created_at', { ascending: true });
 
@@ -154,14 +100,7 @@ export async function exportTeacherApplicationToSheets(applicationId: string) {
 
   const { data: files, error: filesError } = await supabase
     .from('application_files')
-    .select(
-      `
-        normalized_file_name,
-        original_file_name,
-        drive_web_view_link,
-        drive_download_link
-      `
-    )
+    .select(`normalized_file_name, original_file_name, drive_web_view_link, drive_download_link`)
     .eq('application_id', applicationId)
     .order('created_at', { ascending: true });
 
@@ -184,61 +123,237 @@ export async function exportTeacherApplicationToSheets(applicationId: string) {
   );
 
   const uploadedFilesNamesText = joinLines(
-    (files || []).map(
-      (file) => file.normalized_file_name || file.original_file_name || ''
-    )
+    (files || []).map((file) => file.normalized_file_name || file.original_file_name || '')
   );
 
   const uploadedFilesLinksText = joinLines(
-    (files || []).map(
-      (file) => file.drive_web_view_link || file.drive_download_link || ''
-    )
+    (files || []).map((file) => file.drive_web_view_link || file.drive_download_link || '')
   );
 
   const row: (string | number | boolean | null)[] = [
-    toCellValue(application.public_id), // A
-    toCellValue(application.applicant_full_name), // B
-    toCellValue(details.first_name), // C
-    toCellValue(details.surname), // D
-    toCellValue(details.email || application.applicant_email), // E
-    toCellValue(details.date_of_birth), // F
-    toCellValue(details.address_line), // G
-    toCellValue(details.country), // H
-    toCellValue(details.phone_number || application.applicant_phone), // I
-    toCellValue(details.education_history), // J
-    toCellValue(details.english_level), // K
-    toCellValue(details.current_teaching_role), // L
-    toCellValue(details.teaching_experience), // M
-    toCellValue(selectedCoursesText), // N
-    toCellValue(formatAmountRub(application.amount_kobo)), // O
-    toCellValue(application.amount_currency), // P
-    toCellValue(uploadedFilesNamesText), // Q
-    toCellValue(uploadedFilesLinksText), // R
-    toCellValue(details.personal_statement), // S
-    toCellValue(details.task_answer_a), // T
-    toCellValue(details.task_answer_b), // U
-    toCellValue(details.task_answer_c), // V
-    toCellValue(details.review_notes), // W
-    toCellValue(formatBool(application.consent_personal_data)), // X
-    toCellValue(formatBool(application.consent_terms)), // Y
-    toCellValue(formatBool(application.confirmed_id_document_attached)), // Z
-    toCellValue(application.status), // AA
-    toCellValue(application.payment_status), // AB
-    toCellValue(application.payment_provider), // AC
-    toCellValue(application.payment_order_id), // AD
-    toCellValue(application.payment_reference), // AE
-    toCellValue(application.payment_link), // AF
-    toCellValue(application.submitted_at), // AG
-    toCellValue(application.paid_at), // AH
-    toCellValue(application.created_at), // AI
-    toCellValue(application.updated_at), // AJ
-    toCellValue(application.source_system), // AK
-    toCellValue(application.source_path), // AL
-    toCellValue(application.taplink_button), // AM
-    toCellValue(application.program_type), // AN
-    toCellValue(application.current_step), // AO
-    toCellValue(formatBool(application.is_completed)), // AP
+    toCellValue(application.public_id),
+    toCellValue(application.applicant_full_name),
+    toCellValue(details.first_name),
+    toCellValue(details.surname),
+    toCellValue(details.email || application.applicant_email),
+    toCellValue(details.date_of_birth),
+    toCellValue(details.address_line),
+    toCellValue(details.country),
+    toCellValue(details.phone_number || application.applicant_phone),
+    toCellValue(details.education_history),
+    toCellValue(details.english_level),
+    toCellValue(details.current_teaching_role),
+    toCellValue(details.teaching_experience),
+    toCellValue(selectedCoursesText),
+    toCellValue(formatAmountRub(application.amount_kobo)),
+    toCellValue(application.amount_currency),
+    toCellValue(uploadedFilesNamesText),
+    toCellValue(uploadedFilesLinksText),
+    toCellValue(details.personal_statement),
+    toCellValue(details.task_answer_a),
+    toCellValue(details.task_answer_b),
+    toCellValue(details.task_answer_c),
+    toCellValue(details.review_notes),
+    toCellValue(formatBool(application.consent_personal_data)),
+    toCellValue(formatBool(application.consent_terms)),
+    toCellValue(formatBool(application.confirmed_id_document_attached)),
+    toCellValue(application.status),
+    toCellValue(application.payment_status),
+    toCellValue(application.payment_provider),
+    toCellValue(application.payment_order_id),
+    toCellValue(application.payment_reference),
+    toCellValue(application.payment_link),
+    toCellValue(application.submitted_at),
+    toCellValue(application.paid_at),
+    toCellValue(application.created_at),
+    toCellValue(application.updated_at),
+    toCellValue(application.source_system),
+    toCellValue(application.source_path),
+    toCellValue(application.taplink_button),
+    toCellValue(application.program_type),
+    toCellValue(application.current_step),
+    toCellValue(formatBool(application.is_completed)),
   ];
 
-  await appendTeacherRow(row);
+  const spreadsheetId = getEnv('GOOGLE_SHEETS_TEACHERS_SPREADSHEET_ID');
+  const sheetName = getEnv('GOOGLE_SHEETS_TEACHERS_SHEET_NAME');
+  await appendRow(spreadsheetId, sheetName, row);
+}
+
+// --- Primary School export ---
+
+export async function exportPrimarySchoolApplicationToSheets(applicationId: string) {
+  const supabase = createServerSupabaseClient();
+
+  const { data: application, error: applicationError } = await supabase
+    .from('applications')
+    .select(
+      `id, public_id, program_type, status, applicant_email, applicant_phone, applicant_full_name, consent_personal_data, consent_terms, confirmed_id_document_attached, submitted_at, created_at`
+    )
+    .eq('id', applicationId)
+    .single();
+
+  if (applicationError || !application) {
+    throw new Error('Не удалось получить заявку для выгрузки в Google Sheets.');
+  }
+
+  const { data: details, error: detailsError } = await supabase
+    .from('primary_application_details')
+    .select(
+      `candidate_first_name, candidate_surname, date_of_birth, guardian_first_name, guardian_surname, email, phone_number, review_notes`
+    )
+    .eq('application_id', applicationId)
+    .single();
+
+  if (detailsError || !details) {
+    throw new Error('Не удалось получить детали заявки для Google Sheets.');
+  }
+
+  const { data: selectedCourses, error: selectedCoursesError } = await supabase
+    .from('primary_application_selected_courses')
+    .select(`title_snapshot, unit_price_kobo, quantity`)
+    .eq('application_id', applicationId)
+    .order('created_at', { ascending: true });
+
+  if (selectedCoursesError) {
+    throw new Error('Не удалось получить выбранные курсы для Google Sheets.');
+  }
+
+  const { data: files, error: filesError } = await supabase
+    .from('application_files')
+    .select(`normalized_file_name, original_file_name, drive_web_view_link`)
+    .eq('application_id', applicationId)
+    .order('created_at', { ascending: true });
+
+  if (filesError) {
+    throw new Error('Не удалось получить файлы заявки для Google Sheets.');
+  }
+
+  const selectedCoursesText = joinLines(
+    (selectedCourses || []).map((course) => {
+      const title = (course.title_snapshot || '').trim();
+      const priceRub =
+        typeof course.unit_price_kobo === 'number'
+          ? `${Number((course.unit_price_kobo / 100).toFixed(2))} ₽`
+          : '';
+      return [title, priceRub].filter(Boolean).join(' — ');
+    })
+  );
+
+  const uploadedFilesText = joinLines(
+    (files || []).map((f) => f.normalized_file_name || f.original_file_name || '')
+  );
+
+  const row = [
+    toCellValue(application.public_id),
+    toCellValue(application.applicant_full_name),
+    toCellValue(details.candidate_first_name),
+    toCellValue(details.candidate_surname),
+    toCellValue(details.date_of_birth),
+    toCellValue(`${details.guardian_first_name} ${details.guardian_surname}`),
+    toCellValue(details.email),
+    toCellValue(details.phone_number),
+    toCellValue(selectedCoursesText),
+    toCellValue(formatBool(application.confirmed_id_document_attached)),
+    toCellValue(uploadedFilesText),
+    toCellValue(formatBool(application.consent_personal_data)),
+    toCellValue(formatBool(application.consent_terms)),
+    toCellValue(details.review_notes),
+    toCellValue(application.status),
+    toCellValue(application.submitted_at),
+    toCellValue(application.created_at),
+  ];
+
+  const spreadsheetId = getEnv('GOOGLE_SHEETS_TEACHERS_SPREADSHEET_ID'); // общая таблица
+  const sheetName = getEnv('GOOGLE_SHEETS_PRIMARY_SHEET_NAME');
+  await appendRow(spreadsheetId, sheetName, row);
+}
+
+// --- Secondary School export ---
+
+export async function exportSecondarySchoolApplicationToSheets(applicationId: string) {
+  const supabase = createServerSupabaseClient();
+
+  const { data: application, error: applicationError } = await supabase
+    .from('applications')
+    .select(
+      `id, public_id, program_type, status, applicant_email, applicant_phone, applicant_full_name, consent_personal_data, consent_terms, confirmed_id_document_attached, submitted_at, created_at`
+    )
+    .eq('id', applicationId)
+    .single();
+
+  if (applicationError || !application) {
+    throw new Error('Не удалось получить заявку для выгрузки в Google Sheets.');
+  }
+
+  const { data: details, error: detailsError } = await supabase
+    .from('secondary_application_details')
+    .select(
+      `candidate_first_name, candidate_surname, date_of_birth, guardian_first_name, guardian_surname, email, phone_number, review_notes`
+    )
+    .eq('application_id', applicationId)
+    .single();
+
+  if (detailsError || !details) {
+    throw new Error('Не удалось получить детали заявки для Google Sheets.');
+  }
+
+  const { data: selectedCourses, error: selectedCoursesError } = await supabase
+    .from('secondary_application_selected_courses')
+    .select(`title_snapshot, unit_price_kobo, quantity`)
+    .eq('application_id', applicationId)
+    .order('created_at', { ascending: true });
+
+  if (selectedCoursesError) {
+    throw new Error('Не удалось получить выбранные курсы для Google Sheets.');
+  }
+
+  const { data: files, error: filesError } = await supabase
+    .from('application_files')
+    .select(`normalized_file_name, original_file_name, drive_web_view_link`)
+    .eq('application_id', applicationId)
+    .order('created_at', { ascending: true });
+
+  if (filesError) {
+    throw new Error('Не удалось получить файлы заявки для Google Sheets.');
+  }
+
+  const selectedCoursesText = joinLines(
+    (selectedCourses || []).map((course) => {
+      const title = (course.title_snapshot || '').trim();
+      const priceRub =
+        typeof course.unit_price_kobo === 'number'
+          ? `${Number((course.unit_price_kobo / 100).toFixed(2))} ₽`
+          : '';
+      return [title, priceRub].filter(Boolean).join(' — ');
+    })
+  );
+
+  const uploadedFilesText = joinLines(
+    (files || []).map((f) => f.normalized_file_name || f.original_file_name || '')
+  );
+
+  const row = [
+    toCellValue(application.public_id),
+    toCellValue(application.applicant_full_name),
+    toCellValue(details.candidate_first_name),
+    toCellValue(details.candidate_surname),
+    toCellValue(details.date_of_birth),
+    toCellValue(`${details.guardian_first_name} ${details.guardian_surname}`),
+    toCellValue(details.email),
+    toCellValue(details.phone_number),
+    toCellValue(selectedCoursesText),
+    toCellValue(formatBool(application.confirmed_id_document_attached)),
+    toCellValue(uploadedFilesText),
+    toCellValue(formatBool(application.consent_personal_data)),
+    toCellValue(formatBool(application.consent_terms)),
+    toCellValue(details.review_notes),
+    toCellValue(application.status),
+    toCellValue(application.submitted_at),
+    toCellValue(application.created_at),
+  ];
+
+  const spreadsheetId = getEnv('GOOGLE_SHEETS_TEACHERS_SPREADSHEET_ID');
+  const sheetName = getEnv('GOOGLE_SHEETS_SECONDARY_SHEET_NAME');
+  await appendRow(spreadsheetId, sheetName, row);
 }

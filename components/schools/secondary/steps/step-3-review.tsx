@@ -1,0 +1,126 @@
+'use client';
+
+import { Textarea } from '@/components/ui/textarea';
+
+function formatPrice(priceRub: number) {
+  if (!priceRub || priceRub <= 0) return 'Цена уточняется';
+  return new Intl.NumberFormat('ru-RU').format(priceRub) + ' ₽';
+}
+
+export default function Step3Review({
+  values,
+  selectedCourses,
+  totalPriceRub,
+  onChange,
+}: any) {
+  const policyLink = process.env.NEXT_PUBLIC_SECONDARY_POLICY_PDF_URL || '#';
+  const termsLink = process.env.NEXT_PUBLIC_SECONDARY_TERMS_PDF_URL || '#';
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-900">Проверка данных</h2>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div>
+            <span className="text-xs font-medium uppercase text-slate-500">Кандидат</span>
+            <p className="text-sm text-slate-900">
+              {values.candidateFirstName} {values.candidateSurname}
+            </p>
+          </div>
+          <div>
+            <span className="text-xs font-medium uppercase text-slate-500">Дата рождения</span>
+            <p className="text-sm text-slate-900">{values.dateOfBirth}</p>
+          </div>
+          <div>
+            <span className="text-xs font-medium uppercase text-slate-500">Представитель</span>
+            <p className="text-sm text-slate-900">
+              {values.guardianFirstName} {values.guardianSurname}
+            </p>
+          </div>
+          <div>
+            <span className="text-xs font-medium uppercase text-slate-500">Email</span>
+            <p className="text-sm text-slate-900">{values.email}</p>
+          </div>
+          <div>
+            <span className="text-xs font-medium uppercase text-slate-500">Телефон</span>
+            <p className="text-sm text-slate-900">{values.phone}</p>
+          </div>
+          <div>
+            <span className="text-xs font-medium uppercase text-slate-500">Документ</span>
+            <p className="text-sm text-slate-900">
+              {values.confirmedIdDocumentAttached ? 'Загружен' : 'Не загружен'}
+            </p>
+          </div>
+        </div>
+
+        <h3 className="mt-6 text-lg font-semibold text-slate-900">Выбранные курсы</h3>
+        <div className="mt-2 space-y-2">
+          {selectedCourses.map((c: any) => (
+            <div
+              key={c.id}
+              className="flex justify-between rounded-md bg-slate-50 p-3 text-sm"
+            >
+              <span>{c.title}</span>
+              <span className="font-medium">{formatPrice(c.priceRub)}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 flex justify-between rounded-md bg-black p-3 text-white">
+          <span>Итого</span>
+          <span className="font-bold">{formatPrice(totalPriceRub)}</span>
+        </div>
+
+        <div className="mt-6">
+          <label className="mb-2 block text-sm font-medium text-slate-700">
+            Комментарий (необязательно)
+          </label>
+          <Textarea
+            rows={3}
+            value={values.reviewNotes || ''}
+            onChange={(e) => onChange('reviewNotes', e.target.value)}
+            placeholder="Оставьте комментарий, если нужно"
+          />
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-slate-900">Соглашения</h3>
+        <div className="mt-4 space-y-4">
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              checked={!!values.consentPersonalData}
+              onChange={(e) =>
+                onChange('consentPersonalData', e.currentTarget.checked)
+              }
+              className="mt-1 h-4 w-4 shrink-0 accent-black"
+            />
+            <span className="text-sm leading-6 text-slate-700">
+              Я согласен на{' '}
+              <a href={policyLink} target="_blank" className="underline">
+                обработку персональных данных
+              </a>
+            </span>
+          </label>
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              checked={!!values.consentTerms}
+              onChange={(e) =>
+                onChange('consentTerms', e.currentTarget.checked)
+              }
+              className="mt-1 h-4 w-4 shrink-0 accent-black"
+            />
+            <span className="text-sm leading-6 text-slate-700">
+              Я принимаю{' '}
+              <a href={termsLink} target="_blank" className="underline">
+                условия и положения
+              </a>
+            </span>
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+}

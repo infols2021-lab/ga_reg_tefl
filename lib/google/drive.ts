@@ -75,18 +75,26 @@ export type UploadResult = {
   downloadLink: string | null;
 };
 
+export function getFolderIdByProgram(programType: string): string {
+  switch (programType) {
+    case 'primary':
+      return getEnv('GOOGLE_DRIVE_PRIMARY_FOLDER_ID');
+    case 'secondary':
+      return getEnv('GOOGLE_DRIVE_SECONDARY_FOLDER_ID');
+    default:
+      return getEnv('GOOGLE_DRIVE_TEACHERS_FOLDER_ID');
+  }
+}
+
 export async function createApplicationFolder(): Promise<{ folderId: string }> {
   try {
     const rootFolderId = getEnv('GOOGLE_DRIVE_TEACHERS_FOLDER_ID');
-
     console.log('📁 ROOT FOLDER:', rootFolderId);
     console.log('✅ USING ROOT FOLDER WITHOUT NESTED FOLDERS');
-
     return { folderId: rootFolderId };
   } catch (err: any) {
     console.error('❌ createApplicationFolder ERROR:');
     logGoogleError(err);
-
     throw new Error(
       err?.message || 'Не удалось получить папку для загрузки файлов.'
     );
