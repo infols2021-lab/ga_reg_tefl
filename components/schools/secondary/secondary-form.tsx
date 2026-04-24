@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import FormProgress from '@/components/teachers/form-progress';
+import Step0Intro from './steps/step-0-intro';
 import Step1Personal from './steps/step-1-personal';
 import Step2CourseFiles from './steps/step-2-course-files';
 import Step3Review from './steps/step-3-review';
@@ -8,8 +10,15 @@ import Step4Payment from './steps/step-4-payment';
 import { Button } from '@/components/ui/button';
 import LoadingOverlay from '@/components/ui/loading-overlay';
 
+const schoolSteps = [
+  { id: 1, title: 'Candidate Details', shortTitle: 'Данные' },
+  { id: 2, title: 'Courses & Documents', shortTitle: 'Курсы' },
+  { id: 3, title: 'Review & Submit', shortTitle: 'Проверка' },
+  { id: 4, title: 'Payment Instructions', shortTitle: 'Оплата' },
+];
+
 export default function SecondaryForm() {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0);
   const [applicationId, setApplicationId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [courses, setCourses] = useState<any[]>([]);
@@ -92,11 +101,7 @@ export default function SecondaryForm() {
   async function update(id: string, stepNum: number) {
     const res = await fetch('/api/applications/secondary/update-step', {
       method: 'POST',
-      body: JSON.stringify({
-        applicationId: id,
-        step: stepNum,
-        data: form,
-      }),
+      body: JSON.stringify({ applicationId: id, step: stepNum, data: form }),
     });
     const json = await res.json();
     if (!json.ok) throw new Error(json.error.message);
@@ -106,9 +111,7 @@ export default function SecondaryForm() {
     try {
       setIsLoading(true);
       let id = applicationId;
-      if (!id) {
-        id = await createApp();
-      }
+      if (!id) id = await createApp();
 
       if (step === 1) {
         if (!validateStep1()) throw new Error('Заполни все поля');
@@ -128,7 +131,7 @@ export default function SecondaryForm() {
     }
   }
 
-  async function submit() {
+  async function handleSubmit() {
     try {
       if (!validateStep3()) throw new Error('Подтверди согласия');
       const id = applicationId;
@@ -148,7 +151,6 @@ export default function SecondaryForm() {
       });
       const json = await res.json();
       if (!json.ok) throw new Error(json?.error?.message || 'Ошибка отправки заявки');
-
       setStep(4);
     } catch (e: any) {
       alert(e.message);
@@ -157,28 +159,17 @@ export default function SecondaryForm() {
     }
   }
 
-  const selectedCourses = courses.filter((c) =>
-    form.selectedCourseIds.includes(c.id)
-  );
+  const selectedCourses = courses.filter((c) => form.selectedCourseIds.includes(c.id));
   const totalPriceRub = selectedCourses.reduce((sum, c) => sum + (c.priceRub || 0), 0);
-  const showBackButton = step > 1 && step < 4;
+  const showBackButton = step > 0 && step < 4;
+  const isSubmitDisabled = step === 3 && (!form.consentPersonalData || !form.consentTerms);
 
   return (
     <div className="mx-auto max-w-4xl p-6">
       {isLoading && <LoadingOverlay text="Сохранение..." />}
+      {step > 0 && <FormProgress step={step} steps={schoolSteps} />}
 
-      {/* Прогресс-бар */}
-      <div className="mb-8 flex items-center justify-center gap-2">
-        {[1, 2, 3, 4].map((s) => (
-          <div
-            key={s}
-            className={`h-2 w-16 rounded-full ${
-              step >= s ? 'bg-black' : 'bg-gray-200'
-            }`}
-          />
-        ))}
-      </div>
-
+      {step === 0 && <Step0Intro onStart={() => setStep(1)} />}
       {step === 1 && <Step1Personal values={form} onChange={setField} />}
       {step === 2 && (
         <Step2CourseFiles
@@ -208,11 +199,11 @@ export default function SecondaryForm() {
             <Button onClick={next} disabled={isLoading}>
               Далее
             </Button>
-          ) : (
-            <Button onClick={submit} disabled={isLoading || !form.consentPersonalData || !form.consentTerms}>
-              Перейти к оплате
+          ) : step === 3 ? (
+            <Button onClick={handleSubmit} disabled={isLoading || isSubmitDisabled}>
+              Сохранить и перейти к оплате
             </Button>
-          )}
+          ) : null}
         </div>
       )}
     </div>
