@@ -9,7 +9,7 @@ export default function Step4Payment({
   values,
   totalPriceRub,
 }: any) {
-  const qrUrl = process.env.NEXT_PUBLIC_PRIMARY_PAYMENT_QR_URL;
+  const qrUrl = process.env.NEXT_PUBLIC_TEACHERS_PAYMENT_QR_URL;
   const fullName = `${values.candidateFirstName || ''} ${values.candidateSurname || ''}`.trim();
 
   return (
