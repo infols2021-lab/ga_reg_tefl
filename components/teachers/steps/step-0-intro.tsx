@@ -57,15 +57,48 @@ export default function Step0Intro({ onStart }: { onStart: () => void }) {
           </p>
         </div>
 
-        {/* Шаг 3: Письменные ответы */}
+        {/* Шаг 3: Подробное описание SECTION C */}
         <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
           <h3 className="text-lg font-semibold text-slate-950">
-            Шаг 3 — Персональное заявление и задания
+            Шаг 3 — Персональное заявление и письменные задания
           </h3>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            Напишите мотивационное письмо (около 500 слов) и ответьте на три 
-            профессиональных вопроса. Оцениваются грамматика, лексика и стиль.
-          </p>
+          
+          <div className="mt-3 space-y-3 text-sm leading-6 text-slate-600">
+            <div>
+              <p className="font-medium text-slate-800">SECTION C: Your Personal Statement</p>
+              <p>
+                Напишите примерно 500 слов, объяснив:
+              </p>
+              <ul className="list-disc pl-5 mt-1 space-y-1">
+                <li>почему вы выбрали этот курс и что надеетесь получить;</li>
+                <li>ваши текущие сильные и слабые стороны как преподавателя английского языка ИЛИ почему вы считаете себя подходящим для преподавания английского.</li>
+              </ul>
+              <p className="mt-2 text-xs text-slate-500">
+                Обратите внимание: грамматика, словарный запас, орфография и пунктуация будут учитываться при рассмотрении вашей заявки.
+              </p>
+            </div>
+
+            <div className="border-t border-slate-200 pt-3">
+              <p className="font-medium text-slate-800">Pre-enrolment tasks</p>
+              <p>
+                На каждый из трёх вопросов напишите 120–150 слов:
+              </p>
+              <ol className="list-decimal pl-5 mt-1 space-y-2">
+                <li>
+                  <span className="font-medium">A. Reading vs Writing.</span> Какое умение, по вашему мнению, сложнее освоить: чтение или письмо? Почему?
+                </li>
+                <li>
+                  <span className="font-medium">B. Contractions.</span> ‘Can’t’ — сокращённая форма ‘cannot’. Почему важно обучать сокращениям на уроках английского языка?
+                </li>
+                <li>
+                  <span className="font-medium">C. Fluency vs Accuracy.</span> Что важнее при говорении на английском: беглость или точность? Почему?
+                </li>
+              </ol>
+              <p className="mt-2 text-xs text-slate-500">
+                Ваши ответы также оцениваются по качеству языка и аргументации.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Шаг 4: Проверка */}
