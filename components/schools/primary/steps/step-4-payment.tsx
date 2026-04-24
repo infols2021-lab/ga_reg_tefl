@@ -38,7 +38,7 @@ export default function Step4Payment({
             <span className="font-medium">Плательщик:</span> {fullName || 'Не указан'}
           </div>
           <div>
-            <span className="font-medium">Назначение платежа:</span> Обучение (начальная школа)
+            <span className="font-medium">Назначение платежа:</span>  Экзамены по английскому языку (начальная школа)
           </div>
         </div>
 

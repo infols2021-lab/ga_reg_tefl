@@ -42,7 +42,7 @@ export default function Step4Payment({ values, totalPriceRub }: any) {
             {fullName || 'Не указан'}
           </div>
           <div>
-            <span className="font-medium">Назначение платежа:</span> Обучение
+            <span className="font-medium">Назначение платежа:</span> Экзамены по английскому языку
             (средняя / старшая школа)
           </div>
         </div>
