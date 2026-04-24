@@ -5,14 +5,14 @@ const directions = [
     title: 'Начальная школа',
     description:
       'Подача заявки для участников направления начальной школы.',
-    href: '/apply/primary',
+    href: '/apply/school/primary',
     status: 'Скоро будет доступно',
   },
   {
     title: 'Средняя / старшая школа',
     description:
       'Подача заявки для участников направления средней и старшей школы.',
-    href: '/apply/secondary',
+    href: '/apply/school/secondary',
     status: 'Скоро будет доступно',
   },
   {
