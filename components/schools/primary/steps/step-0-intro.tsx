@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 export default function Step0Intro({ onStart }: { onStart: () => void }) {
   return (
@@ -27,6 +28,11 @@ export default function Step0Intro({ onStart }: { onStart: () => void }) {
           <h3 className="text-lg font-semibold text-slate-950">Шаг 2 — Выбор курса и документы</h3>
           <p className="mt-2 text-sm text-slate-600">
             Выберите один или несколько курсов из предложенного списка. Загрузите скан документа (паспорт или свидетельство о рождении).
+          </p>
+          <p className="mt-3">
+            <Link href="/courses" className="text-sm font-medium text-indigo-600 underline">
+              Посмотреть цены
+            </Link>
           </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">

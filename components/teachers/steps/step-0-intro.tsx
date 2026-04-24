@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 export default function Step0Intro({ onStart }: { onStart: () => void }) {
   return (
@@ -54,6 +55,11 @@ export default function Step0Intro({ onStart }: { onStart: () => void }) {
           </ul>
           <p className="mt-3 text-sm text-slate-500">
             Также загрузите скан удостоверения личности.
+          </p>
+          <p className="mt-3">
+            <Link href="/courses" className="text-sm font-medium text-indigo-600 underline">
+              Посмотреть цены
+            </Link>
           </p>
         </div>
 

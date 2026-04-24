@@ -62,6 +62,15 @@ export default function HomePage() {
             </div>
           ))}
         </div>
+
+        <div className="mt-8 text-center">
+          <Link
+            href="/courses"
+            className="inline-flex h-11 items-center justify-center rounded-lg bg-indigo-600 px-5 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            Посмотреть цены
+          </Link>
+        </div>
       </div>
     </main>
   );
