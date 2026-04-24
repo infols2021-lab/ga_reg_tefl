@@ -3,22 +3,19 @@ import Link from 'next/link';
 const directions = [
   {
     title: 'Начальная школа',
-    description:
-      'Подача заявки для участников направления начальной школы.',
-    href: '/apply/school/primary',
-    status: 'Скоро будет доступно',
+    description: 'Подача заявки для участников направления начальной школы.',
+    href: '/apply/schools/primary',
+    status: 'Доступно сейчас',
   },
   {
     title: 'Средняя / старшая школа',
-    description:
-      'Подача заявки для участников направления средней и старшей школы.',
-    href: '/apply/school/secondary',
-    status: 'Скоро будет доступно',
+    description: 'Подача заявки для участников направления средней и старшей школы.',
+    href: '/apply/schools/secondary',
+    status: 'Доступно сейчас',
   },
   {
     title: 'Учителя',
-    description:
-      'Многошаговая форма заявки для учителей с загрузкой документов и оплатой.',
+    description: 'Многошаговая форма заявки для учителей с загрузкой документов и оплатой.',
     href: '/apply/teachers',
     status: 'Доступно сейчас',
   },
