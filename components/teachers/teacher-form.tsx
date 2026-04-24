@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Step0Intro from './steps/step-0-intro';
 import Step1 from './steps/step-1-personal';
 import Step2 from './steps/step-2-course-files';
 import Step3 from './steps/step-3-statement';
@@ -11,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import LoadingOverlay from '@/components/ui/loading-overlay';
 
 export default function TeacherForm() {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0); // начинаем с 0 (инструкция)
   const [applicationId, setApplicationId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [courses, setCourses] = useState<any[]>([]);
@@ -157,14 +158,18 @@ export default function TeacherForm() {
     }
   }
 
-  async function submit() {
+  async function handleSubmit() {
     try {
       if (!validateStep4()) throw new Error('Подтверди согласия');
 
-      let id = applicationId;
-      if (!id) {
-        throw new Error('Сначала создайте заявку');
-      }
+      // Подтверждение финальной отправки
+      const confirmed = window.confirm(
+        '⚠️ После перехода на этап оплаты вы больше не сможете редактировать данные заявки.\n\nУбедитесь, что вся информация введена верно.'
+      );
+      if (!confirmed) return;
+
+      const id = applicationId;
+      if (!id) throw new Error('Сначала создайте заявку');
 
       setIsLoading(true);
 
@@ -201,11 +206,16 @@ export default function TeacherForm() {
   const isSubmitDisabled =
     step === 4 && (!form.consentPersonalData || !form.consentTerms);
 
+  // Кнопка "Назад" скрыта на шагах 0 и 5
+  const showBackButton = step > 0 && step < 5;
+
   return (
     <div className="mx-auto max-w-4xl p-6">
       {isLoading && <LoadingOverlay text="Сохранение..." />}
 
-      <FormProgress step={step} />
+      {step > 0 && <FormProgress step={step} />}
+
+      {step === 0 && <Step0Intro onStart={() => setStep(1)} />}
 
       {step === 1 && <Step1 values={form} onChange={setField} />}
 
@@ -237,24 +247,26 @@ export default function TeacherForm() {
         />
       )}
 
-      <div className="mt-6 flex justify-between">
-        <Button
-          disabled={step === 1 || isLoading}
-          onClick={() => setStep(step - 1)}
-        >
-          Назад
-        </Button>
+      {showBackButton && (
+        <div className="mt-6 flex justify-between">
+          <Button
+            disabled={isLoading}
+            onClick={() => setStep(step - 1)}
+          >
+            Назад
+          </Button>
 
-        {step < 4 ? (
-          <Button onClick={next} disabled={isLoading}>
-            Далее
-          </Button>
-        ) : step === 4 ? (
-          <Button onClick={submit} disabled={isLoading || isSubmitDisabled}>
-            Сохранить и перейти к оплате
-          </Button>
-        ) : null}
-      </div>
+          {step < 4 ? (
+            <Button onClick={next} disabled={isLoading}>
+              Далее
+            </Button>
+          ) : step === 4 ? (
+            <Button onClick={handleSubmit} disabled={isLoading || isSubmitDisabled}>
+              Сохранить и перейти к оплате
+            </Button>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }
