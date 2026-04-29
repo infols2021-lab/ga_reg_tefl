@@ -1,5 +1,7 @@
 'use client';
 
+import { Button } from '@/components/ui/button';
+
 function formatPrice(priceRub: number) {
   if (!priceRub || priceRub <= 0) return 'Цена уточняется';
   return new Intl.NumberFormat('ru-RU').format(priceRub) + ' ₽';
@@ -8,6 +10,10 @@ function formatPrice(priceRub: number) {
 export default function Step4Payment({ values, totalPriceRub }: any) {
   const qrUrl = process.env.NEXT_PUBLIC_TEACHERS_PAYMENT_QR_URL;
   const fullName = `${values.candidateFirstName || ''} ${values.candidateSurname || ''}`.trim();
+
+  const handleFinish = () => {
+    window.location.href = '/apply/schools/secondary/success';
+  };
 
   return (
     <div className="space-y-6">
@@ -50,6 +56,12 @@ export default function Step4Payment({ values, totalPriceRub }: any) {
         <div className="mt-6 rounded-lg bg-amber-50 p-4 text-sm text-amber-900">
           Сохраните этот QR-код или сделайте скриншот. Откройте его через
           банковское приложение, укажите точную сумму и ФИО плательщика.
+        </div>
+
+        <div className="mt-6">
+          <Button onClick={handleFinish} className="w-full">
+            Завершить
+          </Button>
         </div>
       </div>
     </div>

@@ -1,5 +1,7 @@
 'use client';
 
+import { Button } from '@/components/ui/button';
+
 type Step5PaymentProps = {
   values: {
     firstName?: string;
@@ -21,6 +23,10 @@ export default function Step5Payment({
   const fullName = [values.firstName || '', values.surname || '']
     .join(' ')
     .trim();
+
+  const handleFinish = () => {
+    window.location.href = '/apply/teachers/success';
+  };
 
   return (
     <div className="space-y-6">
@@ -109,20 +115,11 @@ export default function Step5Payment({
             <div className="rounded-3xl border border-amber-200 bg-amber-50/80 p-5">
               <h3 className="text-lg font-semibold text-amber-950">Важно</h3>
               <div className="mt-3 space-y-2 text-sm leading-6 text-amber-900">
-                <p>
-                  1. Сохраните этот QR-код или сделайте скриншот перед тем, как
-                  покинуть страницу.
-                </p>
-                <p>
-                  2. Откройте сохранённый QR-код через ваше банковское
-                  приложение.
-                </p>
+                <p>1. Сохраните этот QR-код или сделайте скриншот перед тем, как покинуть страницу.</p>
+                <p>2. Откройте сохранённый QR-код через ваше банковское приложение.</p>
                 <p>3. Введите сумму вручную.</p>
                 <p>4. Введите ваше полное ФИО вручную.</p>
-                <p>
-                  5. В поле назначения платежа укажите: Экзамены по английскому
-                  языку
-                </p>
+                <p>5. В поле назначения платежа укажите: Экзамены по английскому языку</p>
               </div>
             </div>
 
@@ -132,6 +129,10 @@ export default function Step5Payment({
                 по email, который вы указали в форме.
               </p>
             </div>
+
+            <Button onClick={handleFinish} className="w-full">
+              Завершить
+            </Button>
           </div>
         </div>
       </div>
