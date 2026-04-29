@@ -22,15 +22,24 @@ export async function POST(req: Request) {
     const supabase = createServerSupabaseClient();
 
     if (body.step === 1) {
+      const isOver18 = body.data?.isOver18 ?? false;
+
       const updates: any = {
         candidate_first_name: body.data?.candidateFirstName,
         candidate_surname: body.data?.candidateSurname,
         date_of_birth: body.data?.dateOfBirth,
-        guardian_first_name: body.data?.guardianFirstName,
-        guardian_surname: body.data?.guardianSurname,
         email: body.data?.email,
         phone_number: body.data?.phone,
       };
+
+      if (isOver18) {
+        updates.guardian_first_name = null;
+        updates.guardian_surname = null;
+      } else {
+        updates.guardian_first_name = body.data?.guardianFirstName;
+        updates.guardian_surname = body.data?.guardianSurname;
+      }
+
       if (body.data?.examLocationId !== undefined) {
         updates.exam_location_id = body.data.examLocationId;
       }

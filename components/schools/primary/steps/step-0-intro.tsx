@@ -17,7 +17,7 @@ export default function Step0Intro({ onStart }: { onStart: () => void }) {
           Как проходит процесс подачи заявки
         </h2>
         <p className="mt-3 text-sm leading-6 text-slate-600">
-          Ознакомьтесь с шагами, которые вам предстоит заполнить.
+          Ознакомьтесь с алгоритмом заполнения заявки.
         </p>
       </div>
       <div className="grid gap-6 p-6 lg:grid-cols-2">
@@ -41,7 +41,7 @@ export default function Step0Intro({ onStart }: { onStart: () => void }) {
         <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
           <h3 className="text-lg font-semibold text-slate-950">Шаг 3 — Проверка и согласия</h3>
           <p className="mt-2 text-sm text-slate-600">
-            Внимательно проверьте все введённые данные, выбранные курсы и итоговую стоимость. Примите соглашения.
+            Внимательно проверьте все введённые данные, выбранные курсы и итоговую стоимость. Примите согласия и соглашения.
           </p>
           <p className="mt-3 text-sm text-slate-600">
             Рекомендуем заранее ознакомиться с{' '}

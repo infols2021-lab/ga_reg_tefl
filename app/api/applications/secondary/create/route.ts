@@ -5,18 +5,25 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
+    // Обязательные для всех поля
     if (
       !body.candidateFirstName ||
       !body.candidateSurname ||
       !body.dateOfBirth ||
-      !body.guardianFirstName ||
-      !body.guardianSurname ||
       !body.email ||
       !body.phone ||
       !body.examLocationId
     ) {
       return NextResponse.json(
         { ok: false, error: { message: 'Заполни все поля и выбери площадку' } },
+        { status: 400 }
+      );
+    }
+
+    // Если кандидат младше 18, проверяем законного представителя
+    if (!body.isOver18 && (!body.guardianFirstName || !body.guardianSurname)) {
+      return NextResponse.json(
+        { ok: false, error: { message: 'Заполни данные законного представителя' } },
         { status: 400 }
       );
     }
@@ -46,8 +53,8 @@ export async function POST(req: Request) {
         candidate_first_name: body.candidateFirstName,
         candidate_surname: body.candidateSurname,
         date_of_birth: body.dateOfBirth,
-        guardian_first_name: body.guardianFirstName,
-        guardian_surname: body.guardianSurname,
+        guardian_first_name: body.isOver18 ? null : body.guardianFirstName,
+        guardian_surname: body.isOver18 ? null : body.guardianSurname,
         email: body.email,
         phone_number: body.phone,
         exam_location_id: body.examLocationId,
