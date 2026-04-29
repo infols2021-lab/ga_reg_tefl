@@ -6,13 +6,13 @@ export default function SecondarySchoolApplyPage() {
       <div className="mx-auto w-full max-w-6xl">
         <div className="mb-6 text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-            Secondary School Application
+            Подростковые и взрослые экзамены ESOL CLASSIC Gatehouse Awards возраст 13+ лет Application
           </p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-            Secondary School Registration
+            Подростковые и взрослые экзамены ESOL CLASSIC Gatehouse Awards возраст 13+ лет Registration
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
-            Complete the application form, select courses, upload required documents, and review everything carefully before submission.
+            Заполните форму заявки, выберите курсы, загрузите необходимые документы и проверьте их перед отправкой.
           </p>
         </div>
 

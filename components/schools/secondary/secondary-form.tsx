@@ -38,6 +38,7 @@ export default function SecondaryForm() {
     email: '',
     phone: '',
     examLocationId: '',
+    isOver18: false,
     selectedCourseIds: [],
     hasUploadedDocument: false,
     confirmedIdDocumentAttached: false,
@@ -60,16 +61,18 @@ export default function SecondaryForm() {
   }
 
   function validateStep1() {
-    return (
+    const common =
       form.candidateFirstName &&
       form.candidateSurname &&
       form.dateOfBirth &&
-      form.guardianFirstName &&
-      form.guardianSurname &&
       form.email &&
       form.phone &&
-      form.examLocationId
-    );
+      form.examLocationId;
+
+    if (!form.isOver18) {
+      return common && form.guardianFirstName && form.guardianSurname;
+    }
+    return common;
   }
 
   function validateStep2() {
@@ -116,7 +119,11 @@ export default function SecondaryForm() {
   async function update(id: string, stepNum: number) {
     const res = await fetch('/api/applications/secondary/update-step', {
       method: 'POST',
-      body: JSON.stringify({ applicationId: id, step: stepNum, data: form }),
+      body: JSON.stringify({
+        applicationId: id,
+        step: stepNum,
+        data: form,
+      }),
     });
     const json = await res.json();
     if (!json.ok) throw new Error(json.error.message);

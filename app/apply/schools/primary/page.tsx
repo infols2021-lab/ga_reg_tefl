@@ -6,13 +6,13 @@ export default function PrimarySchoolApplyPage() {
       <div className="mx-auto w-full max-w-6xl">
         <div className="mb-6 text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-            Primary School Application
+             Экзамены для детей Cadets Gatehouse Awards возраст 6-13 лет Application
           </p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-            Primary School Registration
+            Экзамены для детей Cadets Gatehouse Awards возраст 6-13 лет Registration
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
-            Complete the application form, select courses, upload required documents, and review before submission.
+            Заполните форму заявки, выберите курсы, загрузите необходимые документы и проверьте их перед отправкой.
           </p>
         </div>
 
