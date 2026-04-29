@@ -2,19 +2,19 @@ import Link from 'next/link';
 
 const directions = [
   {
-    title: 'Начальная школа',
+    title: 'Экзамены для детей Cadets Gatehouse Awards возраст 6-13 лет',
     description: 'Подача заявки для участников направления начальной школы.',
     href: '/apply/schools/primary',
     status: 'Доступно сейчас',
   },
   {
     title: 'Средняя / старшая школа',
-    description: 'Подача заявки для участников направления средней и старшей школы.',
+    description: 'Подростковые и взрослые экзамены ESOL CLASSIC Gatehouse Awards возраст 13+',
     href: '/apply/schools/secondary',
     status: 'Доступно сейчас',
   },
   {
-    title: 'Учителя',
+    title: 'Курсы и экзамены TEFL для педагогов',
     description: 'Многошаговая форма заявки для учителей с загрузкой документов и оплатой.',
     href: '/apply/teachers',
     status: 'Доступно сейчас',
