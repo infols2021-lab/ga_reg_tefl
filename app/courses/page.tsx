@@ -12,9 +12,9 @@ type Course = {
 };
 
 const GROUP_LABELS: Record<string, string> = {
-  primary: '6–13 лет (начальная школа)',
-  secondary: '13+ лет (средняя / старшая школа)',
-  teachers: 'Учителя',
+  primary: 'Экзамены для детей Cadets Gatehouse Awards возраст 6-13 лет',
+  secondary: 'Подростковые и взрослые экзамены ESOL CLASSIC Gatehouse Awards возраст 13+',
+  teachers: 'Курсы и экзамены TEFL для педагогов',
 };
 
 const TEACHER_SUBGROUP_LABELS: Record<string, string> = {

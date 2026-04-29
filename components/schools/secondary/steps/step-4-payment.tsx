@@ -9,7 +9,21 @@ function formatPrice(priceRub: number) {
 
 export default function Step4Payment({ values, totalPriceRub }: any) {
   const qrUrl = process.env.NEXT_PUBLIC_TEACHERS_PAYMENT_QR_URL;
-  const fullName = `${values.candidateFirstName || ''} ${values.candidateSurname || ''}`.trim();
+
+  const candidateFullName = [values.candidateFirstName, values.candidateSurname]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
+  const guardianFullName = [values.guardianFirstName, values.guardianSurname]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
+  const isOver18 = values.isOver18 === true;
+  const payerName = isOver18
+    ? candidateFullName || 'Не указан'
+    : guardianFullName || 'Не указан';
 
   const handleFinish = () => {
     window.location.href = '/apply/schools/secondary/success';
@@ -44,12 +58,15 @@ export default function Step4Payment({ values, totalPriceRub }: any) {
             {formatPrice(totalPriceRub)}
           </div>
           <div>
-            <span className="font-medium">Плательщик:</span>{' '}
-            {fullName || 'Не указан'}
+            <span className="font-medium">ФИО плательщика:</span>{' '}
+            {payerName}
+            {!isOver18 && (
+              <p className="text-xs text-slate-500">Законный представитель</p>
+            )}
           </div>
           <div>
-            <span className="font-medium">Назначение платежа:</span> Экзамены по английскому языку
-            (средняя / старшая школа)
+            <span className="font-medium">Назначение платежа:</span>{' '}
+            Экзамены GA 13+ за {candidateFullName || 'кандидата'}
           </div>
         </div>
 
