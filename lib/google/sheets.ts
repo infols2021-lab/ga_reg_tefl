@@ -180,7 +180,7 @@ export async function exportTeacherApplicationToSheets(applicationId: string) {
   await appendRow(spreadsheetId, sheetName, row);
 }
 
-// --- Primary School export (с площадкой) ---
+// --- Primary School export (с ссылками на файлы) ---
 
 export async function exportPrimarySchoolApplicationToSheets(applicationId: string) {
   const supabase = createServerSupabaseClient();
@@ -256,19 +256,31 @@ export async function exportPrimarySchoolApplicationToSheets(applicationId: stri
     (files || []).map((f) => f.normalized_file_name || f.original_file_name || '')
   );
 
+  const uploadedFilesLinksText = joinLines(
+    (files || []).map((f) => f.drive_web_view_link || '')
+  );
+
+  const guardianFullName = [
+    details.guardian_first_name,
+    details.guardian_surname,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   const row = [
     toCellValue(application.public_id),
     toCellValue(application.applicant_full_name),
     toCellValue(details.candidate_first_name),
     toCellValue(details.candidate_surname),
     toCellValue(details.date_of_birth),
-    toCellValue(`${details.guardian_first_name} ${details.guardian_surname}`),
+    toCellValue(guardianFullName),
     toCellValue(details.email),
     toCellValue(details.phone_number),
-    toCellValue(examLocationText), // <-- площадка добавлена
+    toCellValue(examLocationText),
     toCellValue(selectedCoursesText),
     toCellValue(formatBool(application.confirmed_id_document_attached)),
     toCellValue(uploadedFilesText),
+    toCellValue(uploadedFilesLinksText),
     toCellValue(formatBool(application.consent_personal_data)),
     toCellValue(formatBool(application.consent_terms)),
     toCellValue(details.review_notes),
@@ -282,7 +294,7 @@ export async function exportPrimarySchoolApplicationToSheets(applicationId: stri
   await appendRow(spreadsheetId, sheetName, row);
 }
 
-// --- Secondary School export (с площадкой) ---
+// --- Secondary School export (с ссылками на файлы) ---
 
 export async function exportSecondarySchoolApplicationToSheets(applicationId: string) {
   const supabase = createServerSupabaseClient();
@@ -358,19 +370,31 @@ export async function exportSecondarySchoolApplicationToSheets(applicationId: st
     (files || []).map((f) => f.normalized_file_name || f.original_file_name || '')
   );
 
+  const uploadedFilesLinksText = joinLines(
+    (files || []).map((f) => f.drive_web_view_link || '')
+  );
+
+  const guardianFullName = [
+    details.guardian_first_name,
+    details.guardian_surname,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   const row = [
     toCellValue(application.public_id),
     toCellValue(application.applicant_full_name),
     toCellValue(details.candidate_first_name),
     toCellValue(details.candidate_surname),
     toCellValue(details.date_of_birth),
-    toCellValue(`${details.guardian_first_name} ${details.guardian_surname}`),
+    toCellValue(guardianFullName),
     toCellValue(details.email),
     toCellValue(details.phone_number),
-    toCellValue(examLocationText), // <-- площадка добавлена
+    toCellValue(examLocationText),
     toCellValue(selectedCoursesText),
     toCellValue(formatBool(application.confirmed_id_document_attached)),
     toCellValue(uploadedFilesText),
+    toCellValue(uploadedFilesLinksText),
     toCellValue(formatBool(application.consent_personal_data)),
     toCellValue(formatBool(application.consent_terms)),
     toCellValue(details.review_notes),
