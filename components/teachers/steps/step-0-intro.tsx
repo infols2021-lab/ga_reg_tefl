@@ -121,7 +121,7 @@ export default function Step0Intro({ onStart }: { onStart: () => void }) {
           <p className="mt-3 text-sm text-slate-600">
             Рекомендуем заранее ознакомиться с{' '}
             <a href={termsLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
-              Договором-офертой
+              Договором-оферты
             </a>
             {' '}и{' '}
             <a href={policyLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">

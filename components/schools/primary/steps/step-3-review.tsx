@@ -82,7 +82,7 @@ export default function Step3Review({
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-slate-900">Соглашения</h3>
+        <h3 className="text-lg font-semibold text-slate-900">Соглашения и согласия</h3>
         <div className="mt-4 space-y-4">
           <label className="flex items-start gap-3">
             <input
