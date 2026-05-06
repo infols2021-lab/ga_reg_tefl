@@ -1,17 +1,10 @@
-import { cookies } from 'next/headers';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import {
-  GoogleDriveAuthRequiredError,
-  uploadFileToDrive,
-} from '@/lib/google/drive';
+import { uploadFileToDrive } from '@/lib/google/drive';
 
 export const runtime = 'nodejs';
 
 function jsonError(status: number, code: string, message: string) {
-  return Response.json(
-    { ok: false, error: { code, message } },
-    { status }
-  );
+  return Response.json({ ok: false, error: { code, message } }, { status });
 }
 
 function sanitizeFileNamePart(str: string) {
@@ -75,16 +68,6 @@ export async function POST(request: Request) {
       return jsonError(400, 'FILES_REQUIRED', 'Не выбраны файлы.');
     }
 
-    // Токены Google Drive
-    const cookieStore = await cookies();
-    const googleAccessToken = cookieStore.get('google_drive_access_token')?.value || null;
-    const googleRefreshToken = cookieStore.get('google_drive_refresh_token')?.value || null;
-
-    if (!googleAccessToken && !googleRefreshToken) {
-      return jsonError(401, 'GOOGLE_DRIVE_AUTH_REQUIRED', 'Сначала подключите Google Drive.');
-    }
-
-    // Получаем folderId для primary из переменных окружения
     const folderId = process.env.GOOGLE_DRIVE_PRIMARY_FOLDER_ID;
     if (!folderId) {
       throw new Error('GOOGLE_DRIVE_PRIMARY_FOLDER_ID не задан');
@@ -92,7 +75,6 @@ export async function POST(request: Request) {
 
     const supabase = createServerSupabaseClient();
 
-    // Проверка заявки
     const { data: app, error: appError } = await supabase
       .from('applications')
       .select('id')
@@ -102,7 +84,6 @@ export async function POST(request: Request) {
       return jsonError(404, 'APPLICATION_NOT_FOUND', 'Заявка не найдена.');
     }
 
-    // Загрузка деталей (имя, фамилия, дата рождения) для формирования имени файла
     const { data: details, error: detailsError } = await supabase
       .from('primary_application_details')
       .select('candidate_first_name, candidate_surname, date_of_birth')
@@ -128,9 +109,7 @@ export async function POST(request: Request) {
         buffer,
         fileName: finalFileName,
         mimeType: file.type,
-        folderId, // используется env переменная
-        accessToken: googleAccessToken,
-        refreshToken: googleRefreshToken,
+        folderId,
       });
 
       const { data: insertedFile, error: dbError } = await supabase
@@ -169,9 +148,6 @@ export async function POST(request: Request) {
     return Response.json({ ok: true, data: { uploaded: results } });
   } catch (err: any) {
     console.error('PRIMARY UPLOAD ERROR:', err);
-    if (err instanceof GoogleDriveAuthRequiredError) {
-      return jsonError(401, 'GOOGLE_DRIVE_AUTH_REQUIRED', 'Сначала подключите Google Drive.');
-    }
     return jsonError(500, 'UPLOAD_FAILED', err.message || 'Не удалось загрузить файл.');
   }
 }

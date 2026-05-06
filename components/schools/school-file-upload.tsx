@@ -38,13 +38,6 @@ export default function SchoolFileUpload({
     inputRef.current?.click();
   }
 
-  function startGoogleDriveAuth() {
-    const query = applicationId
-      ? `?applicationId=${encodeURIComponent(applicationId)}`
-      : '';
-    window.location.href = `/api/google/oauth/start${query}`;
-  }
-
   async function loadUploadedFiles(currentApplicationId: string) {
     try {
       setIsLoadingFiles(true);
@@ -90,16 +83,9 @@ export default function SchoolFileUpload({
       formData.append('applicationId', applicationId);
       selectedFiles.forEach((file) => formData.append('files', file));
 
-      const res = await fetch(uploadApi, {
-        method: 'POST',
-        body: formData,
-      });
+      const res = await fetch(uploadApi, { method: 'POST', body: formData });
       const json = await res.json();
       if (!res.ok || !json.ok) {
-        if (json?.error?.code === 'GOOGLE_DRIVE_AUTH_REQUIRED') {
-          startGoogleDriveAuth();
-          return;
-        }
         throw new Error(json?.error?.message || 'Ошибка загрузки');
       }
 
@@ -136,10 +122,6 @@ export default function SchoolFileUpload({
       });
       const json = await res.json();
       if (!res.ok || !json.ok) {
-        if (json?.error?.code === 'GOOGLE_DRIVE_AUTH_REQUIRED') {
-          startGoogleDriveAuth();
-          return;
-        }
         throw new Error(json?.error?.message || 'Не удалось удалить файл');
       }
       const nextFiles = uploadedFiles.filter((file) => file.id !== fileId);

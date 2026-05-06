@@ -1,17 +1,10 @@
-import { cookies } from 'next/headers';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import {
-  deleteFileFromDrive,
-  GoogleDriveAuthRequiredError,
-} from '@/lib/google/drive';
+import { deleteFileFromDrive } from '@/lib/google/drive';
 
 export const runtime = 'nodejs';
 
 function jsonError(status: number, code: string, message: string) {
-  return Response.json(
-    { ok: false, error: { code, message } },
-    { status }
-  );
+  return Response.json({ ok: false, error: { code, message } }, { status });
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -25,14 +18,6 @@ export async function POST(request: Request): Promise<Response> {
     }
     if (!fileId) {
       return jsonError(400, 'FILE_ID_REQUIRED', 'Не передан fileId.');
-    }
-
-    const cookieStore = await cookies();
-    const googleAccessToken = cookieStore.get('google_drive_access_token')?.value || null;
-    const googleRefreshToken = cookieStore.get('google_drive_refresh_token')?.value || null;
-
-    if (!googleAccessToken && !googleRefreshToken) {
-      return jsonError(401, 'GOOGLE_DRIVE_AUTH_REQUIRED', 'Сначала подключите Google Drive.');
     }
 
     const supabase = createServerSupabaseClient();
@@ -49,11 +34,7 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     if (existingFile.drive_file_id) {
-      await deleteFileFromDrive({
-        fileId: existingFile.drive_file_id,
-        accessToken: googleAccessToken,
-        refreshToken: googleRefreshToken,
-      });
+      await deleteFileFromDrive({ fileId: existingFile.drive_file_id });
     }
 
     const { error: deleteDbError } = await supabase
@@ -69,9 +50,6 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ ok: true, data: { deletedFileId: existingFile.id } });
   } catch (err) {
     console.error('SECONDARY DELETE FILE ERROR:', err);
-    if (err instanceof GoogleDriveAuthRequiredError) {
-      return jsonError(401, 'GOOGLE_DRIVE_AUTH_REQUIRED', 'Сначала подключите Google Drive.');
-    }
     return jsonError(500, 'FILE_DELETE_FAILED', err instanceof Error ? err.message : 'Не удалось удалить файл.');
   }
 }

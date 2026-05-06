@@ -1,63 +1,38 @@
-import { cookies } from 'next/headers';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import {
-  createApplicationFolder,
-  GoogleDriveAuthRequiredError,
-  uploadFileToDrive,
-} from '@/lib/google/drive';
+import { createApplicationFolder, uploadFileToDrive } from '@/lib/google/drive';
 
 export const runtime = 'nodejs';
 
 function jsonError(status: number, code: string, message: string) {
-  return Response.json(
-    {
-      ok: false,
-      error: { code, message },
-    },
-    { status }
-  );
+  return Response.json({ ok: false, error: { code, message } }, { status });
 }
 
 function sanitizeFileNamePart(value: string | null | undefined): string {
   if (!value) return '';
-
-  return value
-    .trim()
-    .replace(/[\\/:*?"<>|]+/g, '')
-    .replace(/\s+/g, ' ')
-    .replace(/\.+$/g, '');
+  return value.trim().replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ').replace(/\.+$/g, '');
 }
 
 function formatDateForFileName(value: string | null | undefined): string {
   if (!value) return '';
-
   const trimmed = value.trim();
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    return trimmed;
-  }
-
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
   const date = new Date(trimmed);
   if (Number.isNaN(date.getTime())) return sanitizeFileNamePart(trimmed);
-
   return date.toISOString().slice(0, 10);
 }
 
 function getFileExtension(fileName: string, mimeType?: string | null): string {
   const trimmedName = fileName.trim();
   const dotIndex = trimmedName.lastIndexOf('.');
-
   if (dotIndex > -1 && dotIndex < trimmedName.length - 1) {
     return trimmedName.slice(dotIndex);
   }
-
   const mimeToExt: Record<string, string> = {
     'image/jpeg': '.jpg',
     'image/png': '.png',
     'image/webp': '.webp',
     'application/pdf': '.pdf',
   };
-
   return mimeToExt[mimeType || ''] || '';
 }
 
@@ -71,47 +46,29 @@ function buildUploadedFileName(params: {
   const firstName = sanitizeFileNamePart(params.firstName);
   const surname = sanitizeFileNamePart(params.surname);
   const dateOfBirth = formatDateForFileName(params.dateOfBirth);
-
   const baseName = [firstName, surname, dateOfBirth].filter(Boolean).join(' ');
   const extension = getFileExtension(params.originalFileName, params.mimeType);
-
-  if (!baseName) {
-    return `${Date.now()}${extension}`;
-  }
-
-  return `${baseName}${extension}`;
+  return baseName ? `${baseName}${extension}` : `${Date.now()}${extension}`;
 }
 
 export async function GET(request: Request): Promise<Response> {
   try {
     const url = new URL(request.url);
     const applicationId = url.searchParams.get('applicationId');
-
     if (!applicationId) {
-      return jsonError(
-        400,
-        'APPLICATION_ID_REQUIRED',
-        'Не передан applicationId.'
-      );
+      return jsonError(400, 'APPLICATION_ID_REQUIRED', 'Не передан applicationId.');
     }
 
     const supabase = createServerSupabaseClient();
-
     const { data: files, error } = await supabase
       .from('application_files')
-      .select(
-        'id, normalized_file_name, original_file_name, file_size_bytes, drive_web_view_link, created_at'
-      )
+      .select('id, normalized_file_name, original_file_name, file_size_bytes, drive_web_view_link, created_at')
       .eq('application_id', applicationId)
       .order('created_at', { ascending: false });
 
     if (error) {
       console.error('GET upload files error:', error);
-      return jsonError(
-        500,
-        'FILES_LOAD_FAILED',
-        'Не удалось загрузить список файлов.'
-      );
+      return jsonError(500, 'FILES_LOAD_FAILED', 'Не удалось загрузить список файлов.');
     }
 
     return Response.json({
@@ -128,49 +85,21 @@ export async function GET(request: Request): Promise<Response> {
     });
   } catch (err) {
     console.error('GET /upload ERROR:', err);
-
-    return jsonError(
-      500,
-      'FILES_LOAD_FAILED',
-      err instanceof Error
-        ? err.message
-        : 'Не удалось загрузить список файлов.'
-    );
+    return jsonError(500, 'FILES_LOAD_FAILED', err instanceof Error ? err.message : 'Не удалось загрузить список файлов.');
   }
 }
 
 export async function POST(request: Request): Promise<Response> {
   try {
     const formData = await request.formData();
-
     const applicationId = formData.get('applicationId')?.toString();
-
     if (!applicationId) {
-      return jsonError(
-        400,
-        'APPLICATION_ID_REQUIRED',
-        'Не передан applicationId.'
-      );
+      return jsonError(400, 'APPLICATION_ID_REQUIRED', 'Не передан applicationId.');
     }
 
     const files = formData.getAll('files') as File[];
-
     if (!files.length) {
       return jsonError(400, 'FILES_REQUIRED', 'Не выбраны файлы.');
-    }
-
-    const cookieStore = await cookies();
-    const googleAccessToken =
-      cookieStore.get('google_drive_access_token')?.value || null;
-    const googleRefreshToken =
-      cookieStore.get('google_drive_refresh_token')?.value || null;
-
-    if (!googleAccessToken && !googleRefreshToken) {
-      return jsonError(
-        401,
-        'GOOGLE_DRIVE_AUTH_REQUIRED',
-        'Сначала подключите Google Drive.'
-      );
     }
 
     const supabase = createServerSupabaseClient();
@@ -192,17 +121,12 @@ export async function POST(request: Request): Promise<Response> {
       .single();
 
     if (detailsError || !details) {
-      return jsonError(
-        404,
-        'APPLICATION_DETAILS_NOT_FOUND',
-        'Детали заявки не найдены.'
-      );
+      return jsonError(404, 'APPLICATION_DETAILS_NOT_FOUND', 'Детали заявки не найдены.');
     }
 
     const { folderId } = await createApplicationFolder();
 
     const results = [];
-
     for (const file of files) {
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
@@ -220,8 +144,6 @@ export async function POST(request: Request): Promise<Response> {
         fileName: finalFileName,
         mimeType: file.type,
         folderId,
-        accessToken: googleAccessToken,
-        refreshToken: googleRefreshToken,
       });
 
       const { data: insertedFile, error: dbError } = await supabase
@@ -240,18 +162,12 @@ export async function POST(request: Request): Promise<Response> {
           drive_download_link: upload.downloadLink,
           normalized_file_name: finalFileName,
         })
-        .select(
-          'id, normalized_file_name, original_file_name, file_size_bytes, drive_web_view_link'
-        )
+        .select('id, normalized_file_name, original_file_name, file_size_bytes, drive_web_view_link')
         .single();
 
       if (dbError || !insertedFile) {
         console.error('DB insert file error:', dbError);
-        return jsonError(
-          500,
-          'FILE_DB_SAVE_FAILED',
-          'Файл загружен, но не удалось сохранить его в системе.'
-        );
+        return jsonError(500, 'FILE_DB_SAVE_FAILED', 'Файл загружен, но не удалось сохранить его в системе.');
       }
 
       results.push({
@@ -264,29 +180,9 @@ export async function POST(request: Request): Promise<Response> {
       });
     }
 
-    return Response.json({
-      ok: true,
-      data: {
-        uploaded: results,
-      },
-    });
+    return Response.json({ ok: true, data: { uploaded: results } });
   } catch (err) {
     console.error('UPLOAD ERROR:', err);
-
-    if (err instanceof GoogleDriveAuthRequiredError) {
-      return jsonError(
-        401,
-        'GOOGLE_DRIVE_AUTH_REQUIRED',
-        'Сначала подключите Google Drive.'
-      );
-    }
-
-    return jsonError(
-      500,
-      'UPLOAD_FAILED',
-      err instanceof Error
-        ? err.message
-        : 'Не удалось загрузить файл. Попробуйте ещё раз.'
-    );
+    return jsonError(500, 'UPLOAD_FAILED', err instanceof Error ? err.message : 'Не удалось загрузить файл.');
   }
 }

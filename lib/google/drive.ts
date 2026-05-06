@@ -9,64 +9,32 @@ function getEnv(name: string): string {
   return value;
 }
 
-function buildGoogleOAuthClient(params: {
-  accessToken?: string | null;
-  refreshToken?: string | null;
-}) {
-  const clientId = getEnv('GOOGLE_OAUTH_CLIENT_ID');
-  const clientSecret = getEnv('GOOGLE_OAUTH_CLIENT_SECRET');
-  const redirectUri = getEnv('GOOGLE_OAUTH_REDIRECT_URI');
+function getDriveClient() {
+  const email = getEnv('GOOGLE_SERVICE_ACCOUNT_CLIENT_EMAIL');
+  const key = getEnv('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY').replace(/\\n/g, '\n');
 
-  const oauth2Client = new google.auth.OAuth2(
-    clientId,
-    clientSecret,
-    redirectUri
-  );
-
-  oauth2Client.setCredentials({
-    access_token: params.accessToken || undefined,
-    refresh_token: params.refreshToken || undefined,
+  const auth = new google.auth.JWT({
+    email,
+    key,
+    scopes: ['https://www.googleapis.com/auth/drive'],
   });
 
-  return oauth2Client;
-}
-
-function getDrive(params: {
-  accessToken?: string | null;
-  refreshToken?: string | null;
-}) {
-  return google.drive({
-    version: 'v3',
-    auth: buildGoogleOAuthClient(params),
-  });
+  return google.drive({ version: 'v3', auth });
 }
 
 function logGoogleError(err: any) {
   console.error('❌ GOOGLE DRIVE ERROR FULL:');
-
   if (err?.response?.data) {
     console.error('response.data:', JSON.stringify(err.response.data, null, 2));
   }
-
   if (err?.response?.status) {
     console.error('status:', err.response.status);
   }
-
   if (err?.errors) {
     console.error('errors:', err.errors);
   }
-
   console.error('message:', err?.message);
   console.error('stack:', err?.stack);
-}
-
-export class GoogleDriveAuthRequiredError extends Error {
-  code = 'GOOGLE_DRIVE_AUTH_REQUIRED';
-
-  constructor(message = 'Требуется авторизация Google Drive.') {
-    super(message);
-    this.name = 'GoogleDriveAuthRequiredError';
-  }
 }
 
 export type UploadResult = {
@@ -89,15 +57,10 @@ export function getFolderIdByProgram(programType: string): string {
 export async function createApplicationFolder(): Promise<{ folderId: string }> {
   try {
     const rootFolderId = getEnv('GOOGLE_DRIVE_TEACHERS_FOLDER_ID');
-    console.log('📁 ROOT FOLDER:', rootFolderId);
-    console.log('✅ USING ROOT FOLDER WITHOUT NESTED FOLDERS');
     return { folderId: rootFolderId };
   } catch (err: any) {
-    console.error('❌ createApplicationFolder ERROR:');
     logGoogleError(err);
-    throw new Error(
-      err?.message || 'Не удалось получить папку для загрузки файлов.'
-    );
+    throw new Error(err?.message || 'Не удалось получить папку для загрузки файлов.');
   }
 }
 
@@ -106,18 +69,9 @@ export async function uploadFileToDrive(params: {
   fileName: string;
   mimeType?: string;
   folderId: string;
-  accessToken?: string | null;
-  refreshToken?: string | null;
 }): Promise<UploadResult> {
   try {
-    if (!params.accessToken && !params.refreshToken) {
-      throw new GoogleDriveAuthRequiredError();
-    }
-
-    const drive = getDrive({
-      accessToken: params.accessToken,
-      refreshToken: params.refreshToken,
-    });
+    const drive = getDriveClient();
 
     const stream = Readable.from(params.buffer);
 
@@ -135,7 +89,6 @@ export async function uploadFileToDrive(params: {
     });
 
     const fileId = res.data.id;
-
     if (!fileId) {
       throw new Error('Google не вернул id файла');
     }
@@ -148,39 +101,15 @@ export async function uploadFileToDrive(params: {
   } catch (err: any) {
     console.error('❌ uploadFileToDrive ERROR:');
     logGoogleError(err);
-
-    const status = err?.response?.status;
-    const message = String(err?.message || '');
-
-    if (
-      err instanceof GoogleDriveAuthRequiredError ||
-      status === 401 ||
-      message.toLowerCase().includes('invalid credentials') ||
-      message.toLowerCase().includes('login required') ||
-      message.toLowerCase().includes('unauthorized')
-    ) {
-      throw new GoogleDriveAuthRequiredError();
-    }
-
     throw new Error(err?.message || 'Ошибка загрузки файла в Google Drive');
   }
 }
 
 export async function deleteFileFromDrive(params: {
   fileId: string;
-  accessToken?: string | null;
-  refreshToken?: string | null;
 }): Promise<void> {
   try {
-    if (!params.accessToken && !params.refreshToken) {
-      throw new GoogleDriveAuthRequiredError();
-    }
-
-    const drive = getDrive({
-      accessToken: params.accessToken,
-      refreshToken: params.refreshToken,
-    });
-
+    const drive = getDriveClient();
     await drive.files.delete({
       fileId: params.fileId,
       supportsAllDrives: true,
@@ -188,20 +117,6 @@ export async function deleteFileFromDrive(params: {
   } catch (err: any) {
     console.error('❌ deleteFileFromDrive ERROR:');
     logGoogleError(err);
-
-    const status = err?.response?.status;
-    const message = String(err?.message || '');
-
-    if (
-      err instanceof GoogleDriveAuthRequiredError ||
-      status === 401 ||
-      message.toLowerCase().includes('invalid credentials') ||
-      message.toLowerCase().includes('login required') ||
-      message.toLowerCase().includes('unauthorized')
-    ) {
-      throw new GoogleDriveAuthRequiredError();
-    }
-
     throw new Error(err?.message || 'Ошибка удаления файла из Google Drive');
   }
 }
