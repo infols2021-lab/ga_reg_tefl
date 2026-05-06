@@ -9,15 +9,15 @@ function getEnv(name: string): string {
   return value;
 }
 
+// Создаёт OAuth2-клиент, который всегда использует refresh-токен
 function getDriveClient() {
-  const email = getEnv('GOOGLE_SERVICE_ACCOUNT_CLIENT_EMAIL');
-  const key = getEnv('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY').replace(/\\n/g, '\n');
+  const clientId = getEnv('GOOGLE_OAUTH_CLIENT_ID');
+  const clientSecret = getEnv('GOOGLE_OAUTH_CLIENT_SECRET');
+  const redirectUri = getEnv('GOOGLE_OAUTH_REDIRECT_URI');
+  const refreshToken = getEnv('GOOGLE_DRIVE_REFRESH_TOKEN');
 
-  const auth = new google.auth.JWT({
-    email,
-    key,
-    scopes: ['https://www.googleapis.com/auth/drive'],
-  });
+  const auth = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+  auth.setCredentials({ refresh_token: refreshToken });
 
   return google.drive({ version: 'v3', auth });
 }
@@ -55,13 +55,8 @@ export function getFolderIdByProgram(programType: string): string {
 }
 
 export async function createApplicationFolder(): Promise<{ folderId: string }> {
-  try {
-    const rootFolderId = getEnv('GOOGLE_DRIVE_TEACHERS_FOLDER_ID');
-    return { folderId: rootFolderId };
-  } catch (err: any) {
-    logGoogleError(err);
-    throw new Error(err?.message || 'Не удалось получить папку для загрузки файлов.');
-  }
+  const rootFolderId = getEnv('GOOGLE_DRIVE_TEACHERS_FOLDER_ID');
+  return { folderId: rootFolderId };
 }
 
 export async function uploadFileToDrive(params: {
@@ -85,7 +80,6 @@ export async function uploadFileToDrive(params: {
         body: stream,
       },
       fields: 'id, webViewLink, webContentLink',
-      supportsAllDrives: true,
     });
 
     const fileId = res.data.id;
@@ -110,10 +104,7 @@ export async function deleteFileFromDrive(params: {
 }): Promise<void> {
   try {
     const drive = getDriveClient();
-    await drive.files.delete({
-      fileId: params.fileId,
-      supportsAllDrives: true,
-    });
+    await drive.files.delete({ fileId: params.fileId });
   } catch (err: any) {
     console.error('❌ deleteFileFromDrive ERROR:');
     logGoogleError(err);
