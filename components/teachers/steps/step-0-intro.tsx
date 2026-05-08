@@ -125,7 +125,7 @@ export default function Step0Intro({ onStart }: { onStart: () => void }) {
             </a>
             {' '}и{' '}
             <a href={policyLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
-              Политикой обработки персональных данных
+              LS политикой защиты и обработки персональных данных
             </a>.
           </p>
           <p className="mt-3 text-sm font-medium text-rose-600">

@@ -9,11 +9,11 @@ export default function TeachersSuccessPage() {
         </div>
 
         <h1 className="text-2xl font-bold text-gray-900">
-          Оплата прошла успешно
+          Ваша заявка принята
         </h1>
 
         <p className="mt-3 text-gray-600">
-          Спасибо. Ваша заявка принята и оплата успешно завершена.
+          Регистрация будет завершена после осуществления оплаты. Спасибо за участие!
         </p>
 
         <p className="mt-2 text-gray-600">

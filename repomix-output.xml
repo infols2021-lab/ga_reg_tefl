@@ -59,8 +59,6 @@ app/api/applications/teachers/update-step/route.ts
 app/api/applications/teachers/upload/route.ts
 app/api/courses/route.ts
 app/api/exam-locations/route.ts
-app/api/google/oauth/callback/route.ts
-app/api/google/oauth/start/route.ts
 app/api/payments/prodamus/create/route.ts
 app/api/payments/prodamus/webhook/route.ts
 app/apply/schools/primary/fail/page.tsx
@@ -185,89 +183,6 @@ This version has breaking changes — APIs, conventions, and file structure may 
 <!-- END:nextjs-agent-rules -->
 </file>
 
-<file path="app/api/applications/primary/delete-file/route.ts">
-import { cookies } from 'next/headers';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-import {
-  deleteFileFromDrive,
-  GoogleDriveAuthRequiredError,
-} from '@/lib/google/drive';
-
-export const runtime = 'nodejs';
-
-function jsonError(status: number, code: string, message: string) {
-  return Response.json(
-    { ok: false, error: { code, message } },
-    { status }
-  );
-}
-
-export async function POST(request: Request): Promise<Response> {
-  try {
-    const body = await request.json();
-    const applicationId = body.applicationId?.trim();
-    const fileId = body.fileId?.trim();
-
-    if (!applicationId) {
-      return jsonError(400, 'APPLICATION_ID_REQUIRED', 'Не передан applicationId.');
-    }
-    if (!fileId) {
-      return jsonError(400, 'FILE_ID_REQUIRED', 'Не передан fileId.');
-    }
-
-    const cookieStore = await cookies();
-    const googleAccessToken = cookieStore.get('google_drive_access_token')?.value || null;
-    const googleRefreshToken = cookieStore.get('google_drive_refresh_token')?.value || null;
-
-    if (!googleAccessToken && !googleRefreshToken) {
-      return jsonError(401, 'GOOGLE_DRIVE_AUTH_REQUIRED', 'Сначала подключите Google Drive.');
-    }
-
-    const supabase = createServerSupabaseClient();
-
-    // Получаем информацию о файле
-    const { data: existingFile, error: fileLoadError } = await supabase
-      .from('application_files')
-      .select('id, application_id, drive_file_id')
-      .eq('id', fileId)
-      .eq('application_id', applicationId)
-      .single();
-
-    if (fileLoadError || !existingFile) {
-      return jsonError(404, 'FILE_NOT_FOUND', 'Файл не найден.');
-    }
-
-    // Удаление из Google Drive
-    if (existingFile.drive_file_id) {
-      await deleteFileFromDrive({
-        fileId: existingFile.drive_file_id,
-        accessToken: googleAccessToken,
-        refreshToken: googleRefreshToken,
-      });
-    }
-
-    // Удаление из БД
-    const { error: deleteDbError } = await supabase
-      .from('application_files')
-      .delete()
-      .eq('id', existingFile.id)
-      .eq('application_id', applicationId);
-
-    if (deleteDbError) {
-      return jsonError(500, 'FILE_DB_DELETE_FAILED', 'Файл удалён из Google Drive, но не из базы.');
-    }
-
-    return Response.json({ ok: true, data: { deletedFileId: existingFile.id } });
-  } catch (err) {
-    console.error('PRIMARY DELETE FILE ERROR:', err);
-    if (err instanceof GoogleDriveAuthRequiredError) {
-      return jsonError(401, 'GOOGLE_DRIVE_AUTH_REQUIRED', 'Сначала подключите Google Drive.');
-    }
-    return jsonError(500, 'FILE_DELETE_FAILED', err instanceof Error ? err.message : 'Не удалось удалить файл.');
-  }
-}
-</file>
-
 <file path="app/api/applications/primary/submit/route.ts">
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
@@ -358,266 +273,6 @@ export async function POST(req: Request) {
       },
       { status: 500 }
     );
-  }
-}
-</file>
-
-<file path="app/api/applications/primary/upload/route.ts">
-import { cookies } from 'next/headers';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-import {
-  GoogleDriveAuthRequiredError,
-  uploadFileToDrive,
-} from '@/lib/google/drive';
-
-export const runtime = 'nodejs';
-
-function jsonError(status: number, code: string, message: string) {
-  return Response.json(
-    { ok: false, error: { code, message } },
-    { status }
-  );
-}
-
-function sanitizeFileNamePart(str: string) {
-  return str.trim().replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ').trim();
-}
-
-function getFileExtension(fileName: string, mimeType?: string | null) {
-  const dotIndex = fileName.lastIndexOf('.');
-  if (dotIndex > -1 && dotIndex < fileName.length - 1) return fileName.slice(dotIndex);
-  const map: Record<string, string> = {
-    'image/jpeg': '.jpg',
-    'image/png': '.png',
-    'image/webp': '.webp',
-    'application/pdf': '.pdf',
-  };
-  return map[mimeType || ''] || '';
-}
-
-export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const applicationId = url.searchParams.get('applicationId');
-  if (!applicationId) {
-    return jsonError(400, 'APPLICATION_ID_REQUIRED', 'Нет applicationId');
-  }
-
-  const supabase = createServerSupabaseClient();
-  const { data: files, error } = await supabase
-    .from('application_files')
-    .select('id, normalized_file_name, original_file_name, file_size_bytes, drive_web_view_link, created_at')
-    .eq('application_id', applicationId)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    return jsonError(500, 'FILES_LOAD_FAILED', 'Не удалось загрузить список файлов');
-  }
-
-  return Response.json({
-    ok: true,
-    data: {
-      files: (files || []).map((f) => ({
-        id: f.id,
-        name: f.normalized_file_name || f.original_file_name,
-        originalName: f.original_file_name,
-        size: f.file_size_bytes,
-        url: f.drive_web_view_link ?? null,
-      })),
-    },
-  });
-}
-
-export async function POST(request: Request) {
-  try {
-    const formData = await request.formData();
-    const applicationId = formData.get('applicationId')?.toString();
-    if (!applicationId) {
-      return jsonError(400, 'APPLICATION_ID_REQUIRED', 'Не передан applicationId.');
-    }
-
-    const files = formData.getAll('files') as File[];
-    if (!files.length) {
-      return jsonError(400, 'FILES_REQUIRED', 'Не выбраны файлы.');
-    }
-
-    // Токены Google Drive
-    const cookieStore = await cookies();
-    const googleAccessToken = cookieStore.get('google_drive_access_token')?.value || null;
-    const googleRefreshToken = cookieStore.get('google_drive_refresh_token')?.value || null;
-
-    if (!googleAccessToken && !googleRefreshToken) {
-      return jsonError(401, 'GOOGLE_DRIVE_AUTH_REQUIRED', 'Сначала подключите Google Drive.');
-    }
-
-    // Получаем folderId для primary из переменных окружения
-    const folderId = process.env.GOOGLE_DRIVE_PRIMARY_FOLDER_ID;
-    if (!folderId) {
-      throw new Error('GOOGLE_DRIVE_PRIMARY_FOLDER_ID не задан');
-    }
-
-    const supabase = createServerSupabaseClient();
-
-    // Проверка заявки
-    const { data: app, error: appError } = await supabase
-      .from('applications')
-      .select('id')
-      .eq('id', applicationId)
-      .single();
-    if (appError || !app) {
-      return jsonError(404, 'APPLICATION_NOT_FOUND', 'Заявка не найдена.');
-    }
-
-    // Загрузка деталей (имя, фамилия, дата рождения) для формирования имени файла
-    const { data: details, error: detailsError } = await supabase
-      .from('primary_application_details')
-      .select('candidate_first_name, candidate_surname, date_of_birth')
-      .eq('application_id', applicationId)
-      .single();
-    if (detailsError || !details) {
-      return jsonError(404, 'APPLICATION_DETAILS_NOT_FOUND', 'Детали заявки не найдены.');
-    }
-
-    const results = [];
-    for (const file of files) {
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-
-      const firstName = sanitizeFileNamePart(details.candidate_first_name || '');
-      const surname = sanitizeFileNamePart(details.candidate_surname || '');
-      const dob = details.date_of_birth ? new Date(details.date_of_birth).toISOString().slice(0, 10) : '';
-      const baseName = [firstName, surname, dob].filter(Boolean).join(' ');
-      const extension = getFileExtension(file.name, file.type);
-      const finalFileName = baseName ? `${baseName}${extension}` : `${Date.now()}${extension}`;
-
-      const upload = await uploadFileToDrive({
-        buffer,
-        fileName: finalFileName,
-        mimeType: file.type,
-        folderId, // используется env переменная
-        accessToken: googleAccessToken,
-        refreshToken: googleRefreshToken,
-      });
-
-      const { data: insertedFile, error: dbError } = await supabase
-        .from('application_files')
-        .insert({
-          application_id: app.id,
-          category: 'other',
-          original_file_name: file.name,
-          mime_type: file.type,
-          file_size_bytes: file.size,
-          upload_status: 'uploaded',
-          storage_provider: 'google_drive',
-          drive_folder_id: folderId,
-          drive_file_id: upload.fileId,
-          drive_web_view_link: upload.webViewLink,
-          drive_download_link: upload.downloadLink,
-          normalized_file_name: finalFileName,
-        })
-        .select('id, normalized_file_name, original_file_name, file_size_bytes, drive_web_view_link')
-        .single();
-
-      if (dbError || !insertedFile) {
-        return jsonError(500, 'FILE_DB_SAVE_FAILED', 'Файл загружен, но не сохранён в базе.');
-      }
-
-      results.push({
-        id: insertedFile.id,
-        name: insertedFile.normalized_file_name || insertedFile.original_file_name,
-        originalName: insertedFile.original_file_name,
-        size: insertedFile.file_size_bytes,
-        fileId: upload.fileId,
-        url: insertedFile.drive_web_view_link ?? null,
-      });
-    }
-
-    return Response.json({ ok: true, data: { uploaded: results } });
-  } catch (err: any) {
-    console.error('PRIMARY UPLOAD ERROR:', err);
-    if (err instanceof GoogleDriveAuthRequiredError) {
-      return jsonError(401, 'GOOGLE_DRIVE_AUTH_REQUIRED', 'Сначала подключите Google Drive.');
-    }
-    return jsonError(500, 'UPLOAD_FAILED', err.message || 'Не удалось загрузить файл.');
-  }
-}
-</file>
-
-<file path="app/api/applications/secondary/delete-file/route.ts">
-import { cookies } from 'next/headers';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-import {
-  deleteFileFromDrive,
-  GoogleDriveAuthRequiredError,
-} from '@/lib/google/drive';
-
-export const runtime = 'nodejs';
-
-function jsonError(status: number, code: string, message: string) {
-  return Response.json(
-    { ok: false, error: { code, message } },
-    { status }
-  );
-}
-
-export async function POST(request: Request): Promise<Response> {
-  try {
-    const body = await request.json();
-    const applicationId = body.applicationId?.trim();
-    const fileId = body.fileId?.trim();
-
-    if (!applicationId) {
-      return jsonError(400, 'APPLICATION_ID_REQUIRED', 'Не передан applicationId.');
-    }
-    if (!fileId) {
-      return jsonError(400, 'FILE_ID_REQUIRED', 'Не передан fileId.');
-    }
-
-    const cookieStore = await cookies();
-    const googleAccessToken = cookieStore.get('google_drive_access_token')?.value || null;
-    const googleRefreshToken = cookieStore.get('google_drive_refresh_token')?.value || null;
-
-    if (!googleAccessToken && !googleRefreshToken) {
-      return jsonError(401, 'GOOGLE_DRIVE_AUTH_REQUIRED', 'Сначала подключите Google Drive.');
-    }
-
-    const supabase = createServerSupabaseClient();
-
-    const { data: existingFile, error: fileLoadError } = await supabase
-      .from('application_files')
-      .select('id, application_id, drive_file_id')
-      .eq('id', fileId)
-      .eq('application_id', applicationId)
-      .single();
-
-    if (fileLoadError || !existingFile) {
-      return jsonError(404, 'FILE_NOT_FOUND', 'Файл не найден.');
-    }
-
-    if (existingFile.drive_file_id) {
-      await deleteFileFromDrive({
-        fileId: existingFile.drive_file_id,
-        accessToken: googleAccessToken,
-        refreshToken: googleRefreshToken,
-      });
-    }
-
-    const { error: deleteDbError } = await supabase
-      .from('application_files')
-      .delete()
-      .eq('id', existingFile.id)
-      .eq('application_id', applicationId);
-
-    if (deleteDbError) {
-      return jsonError(500, 'FILE_DB_DELETE_FAILED', 'Файл удалён из Google Drive, но не из базы.');
-    }
-
-    return Response.json({ ok: true, data: { deletedFileId: existingFile.id } });
-  } catch (err) {
-    console.error('SECONDARY DELETE FILE ERROR:', err);
-    if (err instanceof GoogleDriveAuthRequiredError) {
-      return jsonError(401, 'GOOGLE_DRIVE_AUTH_REQUIRED', 'Сначала подключите Google Drive.');
-    }
-    return jsonError(500, 'FILE_DELETE_FAILED', err instanceof Error ? err.message : 'Не удалось удалить файл.');
   }
 }
 </file>
@@ -714,184 +369,6 @@ export async function POST(req: Request) {
 }
 </file>
 
-<file path="app/api/applications/secondary/upload/route.ts">
-import { cookies } from 'next/headers';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-import {
-  GoogleDriveAuthRequiredError,
-  uploadFileToDrive,
-} from '@/lib/google/drive';
-
-export const runtime = 'nodejs';
-
-function jsonError(status: number, code: string, message: string) {
-  return Response.json(
-    { ok: false, error: { code, message } },
-    { status }
-  );
-}
-
-function sanitizeFileNamePart(str: string) {
-  return str.trim().replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ').trim();
-}
-
-function getFileExtension(fileName: string, mimeType?: string | null) {
-  const dotIndex = fileName.lastIndexOf('.');
-  if (dotIndex > -1 && dotIndex < fileName.length - 1) return fileName.slice(dotIndex);
-  const map: Record<string, string> = {
-    'image/jpeg': '.jpg',
-    'image/png': '.png',
-    'image/webp': '.webp',
-    'application/pdf': '.pdf',
-  };
-  return map[mimeType || ''] || '';
-}
-
-export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const applicationId = url.searchParams.get('applicationId');
-  if (!applicationId) {
-    return jsonError(400, 'APPLICATION_ID_REQUIRED', 'Нет applicationId');
-  }
-
-  const supabase = createServerSupabaseClient();
-  const { data: files, error } = await supabase
-    .from('application_files')
-    .select('id, normalized_file_name, original_file_name, file_size_bytes, drive_web_view_link, created_at')
-    .eq('application_id', applicationId)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    return jsonError(500, 'FILES_LOAD_FAILED', 'Не удалось загрузить список файлов');
-  }
-
-  return Response.json({
-    ok: true,
-    data: {
-      files: (files || []).map((f) => ({
-        id: f.id,
-        name: f.normalized_file_name || f.original_file_name,
-        originalName: f.original_file_name,
-        size: f.file_size_bytes,
-        url: f.drive_web_view_link ?? null,
-      })),
-    },
-  });
-}
-
-export async function POST(request: Request) {
-  try {
-    const formData = await request.formData();
-    const applicationId = formData.get('applicationId')?.toString();
-    if (!applicationId) {
-      return jsonError(400, 'APPLICATION_ID_REQUIRED', 'Не передан applicationId.');
-    }
-
-    const files = formData.getAll('files') as File[];
-    if (!files.length) {
-      return jsonError(400, 'FILES_REQUIRED', 'Не выбраны файлы.');
-    }
-
-    const cookieStore = await cookies();
-    const googleAccessToken = cookieStore.get('google_drive_access_token')?.value || null;
-    const googleRefreshToken = cookieStore.get('google_drive_refresh_token')?.value || null;
-
-    if (!googleAccessToken && !googleRefreshToken) {
-      return jsonError(401, 'GOOGLE_DRIVE_AUTH_REQUIRED', 'Сначала подключите Google Drive.');
-    }
-
-    // Получаем folderId для secondary из переменных окружения
-    const folderId = process.env.GOOGLE_DRIVE_SECONDARY_FOLDER_ID;
-    if (!folderId) {
-      throw new Error('GOOGLE_DRIVE_SECONDARY_FOLDER_ID не задан');
-    }
-
-    const supabase = createServerSupabaseClient();
-
-    const { data: app, error: appError } = await supabase
-      .from('applications')
-      .select('id')
-      .eq('id', applicationId)
-      .single();
-    if (appError || !app) {
-      return jsonError(404, 'APPLICATION_NOT_FOUND', 'Заявка не найдена.');
-    }
-
-    // Загрузка деталей (имя, фамилия, дата рождения) для формирования имени файла
-    const { data: details, error: detailsError } = await supabase
-      .from('secondary_application_details')
-      .select('candidate_first_name, candidate_surname, date_of_birth')
-      .eq('application_id', applicationId)
-      .single();
-    if (detailsError || !details) {
-      return jsonError(404, 'APPLICATION_DETAILS_NOT_FOUND', 'Детали заявки не найдены.');
-    }
-
-    const results = [];
-    for (const file of files) {
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-
-      const firstName = sanitizeFileNamePart(details.candidate_first_name || '');
-      const surname = sanitizeFileNamePart(details.candidate_surname || '');
-      const dob = details.date_of_birth ? new Date(details.date_of_birth).toISOString().slice(0, 10) : '';
-      const baseName = [firstName, surname, dob].filter(Boolean).join(' ');
-      const extension = getFileExtension(file.name, file.type);
-      const finalFileName = baseName ? `${baseName}${extension}` : `${Date.now()}${extension}`;
-
-      const upload = await uploadFileToDrive({
-        buffer,
-        fileName: finalFileName,
-        mimeType: file.type,
-        folderId, // GOOGLE_DRIVE_SECONDARY_FOLDER_ID
-        accessToken: googleAccessToken,
-        refreshToken: googleRefreshToken,
-      });
-
-      const { data: insertedFile, error: dbError } = await supabase
-        .from('application_files')
-        .insert({
-          application_id: app.id,
-          category: 'other',
-          original_file_name: file.name,
-          mime_type: file.type,
-          file_size_bytes: file.size,
-          upload_status: 'uploaded',
-          storage_provider: 'google_drive',
-          drive_folder_id: folderId,
-          drive_file_id: upload.fileId,
-          drive_web_view_link: upload.webViewLink,
-          drive_download_link: upload.downloadLink,
-          normalized_file_name: finalFileName,
-        })
-        .select('id, normalized_file_name, original_file_name, file_size_bytes, drive_web_view_link')
-        .single();
-
-      if (dbError || !insertedFile) {
-        return jsonError(500, 'FILE_DB_SAVE_FAILED', 'Файл загружен, но не сохранён в базе.');
-      }
-
-      results.push({
-        id: insertedFile.id,
-        name: insertedFile.normalized_file_name || insertedFile.original_file_name,
-        originalName: insertedFile.original_file_name,
-        size: insertedFile.file_size_bytes,
-        fileId: upload.fileId,
-        url: insertedFile.drive_web_view_link ?? null,
-      });
-    }
-
-    return Response.json({ ok: true, data: { uploaded: results } });
-  } catch (err: any) {
-    console.error('SECONDARY UPLOAD ERROR:', err);
-    if (err instanceof GoogleDriveAuthRequiredError) {
-      return jsonError(401, 'GOOGLE_DRIVE_AUTH_REQUIRED', 'Сначала подключите Google Drive.');
-    }
-    return jsonError(500, 'UPLOAD_FAILED', err.message || 'Не удалось загрузить файл.');
-  }
-}
-</file>
-
 <file path="app/api/applications/teachers/create/route.ts">
 import { NextResponse } from 'next/server';
 import { createTeacherApplication } from '@/lib/applications/teachers';
@@ -932,127 +409,6 @@ export async function POST(req: Request) {
         error: { message: e.message || 'Ошибка создания заявки' },
       },
       { status: 500 }
-    );
-  }
-}
-</file>
-
-<file path="app/api/applications/teachers/delete-file/route.ts">
-import { cookies } from 'next/headers';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-import {
-  deleteFileFromDrive,
-  GoogleDriveAuthRequiredError,
-} from '@/lib/google/drive';
-
-export const runtime = 'nodejs';
-
-function jsonError(status: number, code: string, message: string) {
-  return Response.json(
-    {
-      ok: false,
-      error: { code, message },
-    },
-    { status }
-  );
-}
-
-type DeleteFileBody = {
-  applicationId?: string;
-  fileId?: string;
-};
-
-export async function POST(request: Request): Promise<Response> {
-  try {
-    const body = (await request.json()) as DeleteFileBody;
-    const applicationId = body.applicationId?.trim();
-    const fileId = body.fileId?.trim();
-
-    if (!applicationId) {
-      return jsonError(
-        400,
-        'APPLICATION_ID_REQUIRED',
-        'Не передан applicationId.'
-      );
-    }
-
-    if (!fileId) {
-      return jsonError(400, 'FILE_ID_REQUIRED', 'Не передан fileId.');
-    }
-
-    const cookieStore = await cookies();
-    const googleAccessToken =
-      cookieStore.get('google_drive_access_token')?.value || null;
-    const googleRefreshToken =
-      cookieStore.get('google_drive_refresh_token')?.value || null;
-
-    if (!googleAccessToken && !googleRefreshToken) {
-      return jsonError(
-        401,
-        'GOOGLE_DRIVE_AUTH_REQUIRED',
-        'Сначала подключите Google Drive.'
-      );
-    }
-
-    const supabase = createServerSupabaseClient();
-
-    const { data: existingFile, error: fileLoadError } = await supabase
-      .from('application_files')
-      .select('id, application_id, drive_file_id')
-      .eq('id', fileId)
-      .eq('application_id', applicationId)
-      .single();
-
-    if (fileLoadError || !existingFile) {
-      return jsonError(404, 'FILE_NOT_FOUND', 'Файл не найден.');
-    }
-
-    if (existingFile.drive_file_id) {
-      await deleteFileFromDrive({
-        fileId: existingFile.drive_file_id,
-        accessToken: googleAccessToken,
-        refreshToken: googleRefreshToken,
-      });
-    }
-
-    const { error: deleteDbError } = await supabase
-      .from('application_files')
-      .delete()
-      .eq('id', existingFile.id)
-      .eq('application_id', applicationId);
-
-    if (deleteDbError) {
-      console.error('DB delete file error:', deleteDbError);
-      return jsonError(
-        500,
-        'FILE_DB_DELETE_FAILED',
-        'Файл удалён из Google Drive, но не удалён из системы.'
-      );
-    }
-
-    return Response.json({
-      ok: true,
-      data: {
-        deletedFileId: existingFile.id,
-      },
-    });
-  } catch (err) {
-    console.error('DELETE FILE ERROR:', err);
-
-    if (err instanceof GoogleDriveAuthRequiredError) {
-      return jsonError(
-        401,
-        'GOOGLE_DRIVE_AUTH_REQUIRED',
-        'Сначала подключите Google Drive.'
-      );
-    }
-
-    return jsonError(
-      500,
-      'FILE_DELETE_FAILED',
-      err instanceof Error
-        ? err.message
-        : 'Не удалось удалить файл. Попробуйте ещё раз.'
     );
   }
 }
@@ -1167,301 +523,6 @@ export async function POST(req: Request) {
 }
 </file>
 
-<file path="app/api/applications/teachers/upload/route.ts">
-import { cookies } from 'next/headers';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-import {
-  createApplicationFolder,
-  GoogleDriveAuthRequiredError,
-  uploadFileToDrive,
-} from '@/lib/google/drive';
-
-export const runtime = 'nodejs';
-
-function jsonError(status: number, code: string, message: string) {
-  return Response.json(
-    {
-      ok: false,
-      error: { code, message },
-    },
-    { status }
-  );
-}
-
-function sanitizeFileNamePart(value: string | null | undefined): string {
-  if (!value) return '';
-
-  return value
-    .trim()
-    .replace(/[\\/:*?"<>|]+/g, '')
-    .replace(/\s+/g, ' ')
-    .replace(/\.+$/g, '');
-}
-
-function formatDateForFileName(value: string | null | undefined): string {
-  if (!value) return '';
-
-  const trimmed = value.trim();
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    return trimmed;
-  }
-
-  const date = new Date(trimmed);
-  if (Number.isNaN(date.getTime())) return sanitizeFileNamePart(trimmed);
-
-  return date.toISOString().slice(0, 10);
-}
-
-function getFileExtension(fileName: string, mimeType?: string | null): string {
-  const trimmedName = fileName.trim();
-  const dotIndex = trimmedName.lastIndexOf('.');
-
-  if (dotIndex > -1 && dotIndex < trimmedName.length - 1) {
-    return trimmedName.slice(dotIndex);
-  }
-
-  const mimeToExt: Record<string, string> = {
-    'image/jpeg': '.jpg',
-    'image/png': '.png',
-    'image/webp': '.webp',
-    'application/pdf': '.pdf',
-  };
-
-  return mimeToExt[mimeType || ''] || '';
-}
-
-function buildUploadedFileName(params: {
-  firstName?: string | null;
-  surname?: string | null;
-  dateOfBirth?: string | null;
-  originalFileName: string;
-  mimeType?: string | null;
-}): string {
-  const firstName = sanitizeFileNamePart(params.firstName);
-  const surname = sanitizeFileNamePart(params.surname);
-  const dateOfBirth = formatDateForFileName(params.dateOfBirth);
-
-  const baseName = [firstName, surname, dateOfBirth].filter(Boolean).join(' ');
-  const extension = getFileExtension(params.originalFileName, params.mimeType);
-
-  if (!baseName) {
-    return `${Date.now()}${extension}`;
-  }
-
-  return `${baseName}${extension}`;
-}
-
-export async function GET(request: Request): Promise<Response> {
-  try {
-    const url = new URL(request.url);
-    const applicationId = url.searchParams.get('applicationId');
-
-    if (!applicationId) {
-      return jsonError(
-        400,
-        'APPLICATION_ID_REQUIRED',
-        'Не передан applicationId.'
-      );
-    }
-
-    const supabase = createServerSupabaseClient();
-
-    const { data: files, error } = await supabase
-      .from('application_files')
-      .select(
-        'id, normalized_file_name, original_file_name, file_size_bytes, drive_web_view_link, created_at'
-      )
-      .eq('application_id', applicationId)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('GET upload files error:', error);
-      return jsonError(
-        500,
-        'FILES_LOAD_FAILED',
-        'Не удалось загрузить список файлов.'
-      );
-    }
-
-    return Response.json({
-      ok: true,
-      data: {
-        files: (files || []).map((file) => ({
-          id: file.id,
-          name: file.normalized_file_name || file.original_file_name,
-          originalName: file.original_file_name || null,
-          size: file.file_size_bytes ?? null,
-          url: file.drive_web_view_link ?? null,
-        })),
-      },
-    });
-  } catch (err) {
-    console.error('GET /upload ERROR:', err);
-
-    return jsonError(
-      500,
-      'FILES_LOAD_FAILED',
-      err instanceof Error
-        ? err.message
-        : 'Не удалось загрузить список файлов.'
-    );
-  }
-}
-
-export async function POST(request: Request): Promise<Response> {
-  try {
-    const formData = await request.formData();
-
-    const applicationId = formData.get('applicationId')?.toString();
-
-    if (!applicationId) {
-      return jsonError(
-        400,
-        'APPLICATION_ID_REQUIRED',
-        'Не передан applicationId.'
-      );
-    }
-
-    const files = formData.getAll('files') as File[];
-
-    if (!files.length) {
-      return jsonError(400, 'FILES_REQUIRED', 'Не выбраны файлы.');
-    }
-
-    const cookieStore = await cookies();
-    const googleAccessToken =
-      cookieStore.get('google_drive_access_token')?.value || null;
-    const googleRefreshToken =
-      cookieStore.get('google_drive_refresh_token')?.value || null;
-
-    if (!googleAccessToken && !googleRefreshToken) {
-      return jsonError(
-        401,
-        'GOOGLE_DRIVE_AUTH_REQUIRED',
-        'Сначала подключите Google Drive.'
-      );
-    }
-
-    const supabase = createServerSupabaseClient();
-
-    const { data: app, error: appError } = await supabase
-      .from('applications')
-      .select('id, public_id')
-      .eq('id', applicationId)
-      .single();
-
-    if (appError || !app) {
-      return jsonError(404, 'APPLICATION_NOT_FOUND', 'Заявка не найдена.');
-    }
-
-    const { data: details, error: detailsError } = await supabase
-      .from('teacher_application_details')
-      .select('first_name, surname, date_of_birth')
-      .eq('application_id', applicationId)
-      .single();
-
-    if (detailsError || !details) {
-      return jsonError(
-        404,
-        'APPLICATION_DETAILS_NOT_FOUND',
-        'Детали заявки не найдены.'
-      );
-    }
-
-    const { folderId } = await createApplicationFolder();
-
-    const results = [];
-
-    for (const file of files) {
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-
-      const finalFileName = buildUploadedFileName({
-        firstName: details.first_name,
-        surname: details.surname,
-        dateOfBirth: details.date_of_birth,
-        originalFileName: file.name,
-        mimeType: file.type,
-      });
-
-      const upload = await uploadFileToDrive({
-        buffer,
-        fileName: finalFileName,
-        mimeType: file.type,
-        folderId,
-        accessToken: googleAccessToken,
-        refreshToken: googleRefreshToken,
-      });
-
-      const { data: insertedFile, error: dbError } = await supabase
-        .from('application_files')
-        .insert({
-          application_id: app.id,
-          category: 'other',
-          original_file_name: file.name,
-          mime_type: file.type,
-          file_size_bytes: file.size,
-          upload_status: 'uploaded',
-          storage_provider: 'google_drive',
-          drive_folder_id: folderId,
-          drive_file_id: upload.fileId,
-          drive_web_view_link: upload.webViewLink,
-          drive_download_link: upload.downloadLink,
-          normalized_file_name: finalFileName,
-        })
-        .select(
-          'id, normalized_file_name, original_file_name, file_size_bytes, drive_web_view_link'
-        )
-        .single();
-
-      if (dbError || !insertedFile) {
-        console.error('DB insert file error:', dbError);
-        return jsonError(
-          500,
-          'FILE_DB_SAVE_FAILED',
-          'Файл загружен, но не удалось сохранить его в системе.'
-        );
-      }
-
-      results.push({
-        id: insertedFile.id,
-        name: insertedFile.normalized_file_name || insertedFile.original_file_name,
-        originalName: insertedFile.original_file_name || null,
-        size: insertedFile.file_size_bytes ?? null,
-        fileId: upload.fileId,
-        url: insertedFile.drive_web_view_link ?? null,
-      });
-    }
-
-    return Response.json({
-      ok: true,
-      data: {
-        uploaded: results,
-      },
-    });
-  } catch (err) {
-    console.error('UPLOAD ERROR:', err);
-
-    if (err instanceof GoogleDriveAuthRequiredError) {
-      return jsonError(
-        401,
-        'GOOGLE_DRIVE_AUTH_REQUIRED',
-        'Сначала подключите Google Drive.'
-      );
-    }
-
-    return jsonError(
-      500,
-      'UPLOAD_FAILED',
-      err instanceof Error
-        ? err.message
-        : 'Не удалось загрузить файл. Попробуйте ещё раз.'
-    );
-  }
-}
-</file>
-
 <file path="app/api/exam-locations/route.ts">
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
@@ -1498,210 +559,6 @@ export async function GET() {
     );
   }
 }
-</file>
-
-<file path="app/api/google/oauth/callback/route.ts">
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
-import { exchangeGoogleOAuthCode } from '@/lib/google/oauth';
-
-export const runtime = 'nodejs';
-
-type OAuthStatePayload = {
-  nonce: string;
-  returnTo: string;
-  applicationId: string | null;
-};
-
-function fromBase64Url<T>(value: string): T {
-  return JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as T;
-}
-
-function buildRedirectUrl(params: {
-  origin: string;
-  returnTo?: string | null;
-  applicationId?: string | null;
-  connected?: boolean;
-  error?: string | null;
-}) {
-  const redirectUrl = new URL(params.returnTo || '/apply/teachers', params.origin);
-
-  if (params.applicationId) {
-    redirectUrl.searchParams.set('applicationId', params.applicationId);
-  }
-
-  if (params.connected) {
-    redirectUrl.searchParams.set('googleDriveConnected', '1');
-  }
-
-  if (params.error) {
-    redirectUrl.searchParams.set('googleDriveError', params.error);
-  }
-
-  return redirectUrl;
-}
-
-export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const code = url.searchParams.get('code');
-  const state = url.searchParams.get('state');
-  const oauthError = url.searchParams.get('error');
-
-  const cookieStore = await cookies();
-  const expectedNonce = cookieStore.get('google_oauth_state_nonce')?.value || null;
-
-  if (oauthError) {
-    const redirectUrl = buildRedirectUrl({
-      origin: url.origin,
-      error: oauthError,
-    });
-
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  if (!code || !state) {
-    const redirectUrl = buildRedirectUrl({
-      origin: url.origin,
-      error: 'missing_oauth_params',
-    });
-
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  let parsedState: OAuthStatePayload;
-
-  try {
-    parsedState = fromBase64Url<OAuthStatePayload>(state);
-  } catch {
-    const redirectUrl = buildRedirectUrl({
-      origin: url.origin,
-      error: 'invalid_state',
-    });
-
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  if (!expectedNonce || parsedState.nonce !== expectedNonce) {
-    const redirectUrl = buildRedirectUrl({
-      origin: url.origin,
-      returnTo: parsedState.returnTo,
-      applicationId: parsedState.applicationId,
-      error: 'state_mismatch',
-    });
-
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  try {
-    const tokens = await exchangeGoogleOAuthCode(code);
-
-    const redirectUrl = buildRedirectUrl({
-      origin: url.origin,
-      returnTo: parsedState.returnTo,
-      applicationId: parsedState.applicationId,
-      connected: true,
-    });
-
-    const response = NextResponse.redirect(redirectUrl);
-
-    response.cookies.set('google_oauth_state_nonce', '', {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      path: '/',
-      maxAge: 0,
-    });
-
-    if (tokens.access_token) {
-      response.cookies.set('google_drive_access_token', tokens.access_token, {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
-        path: '/',
-        maxAge: tokens.expiry_date
-          ? Math.max(60, Math.floor((tokens.expiry_date - Date.now()) / 1000))
-          : 60 * 60,
-      });
-    }
-
-    if (tokens.refresh_token) {
-      response.cookies.set('google_drive_refresh_token', tokens.refresh_token, {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
-        path: '/',
-        maxAge: 60 * 60 * 24 * 30,
-      });
-    }
-
-    return response;
-  } catch (error) {
-    console.error('GOOGLE OAUTH CALLBACK ERROR:', error);
-
-    const redirectUrl = buildRedirectUrl({
-      origin: url.origin,
-      returnTo: parsedState.returnTo,
-      applicationId: parsedState.applicationId,
-      error: 'token_exchange_failed',
-    });
-
-    return NextResponse.redirect(redirectUrl);
-  }
-}
-</file>
-
-<file path="app/api/google/oauth/start/route.ts">
-import { randomUUID } from 'node:crypto';
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
-import { buildGoogleOAuthUrl } from '@/lib/google/oauth';
-
-export const runtime = 'nodejs';
-
-type OAuthStatePayload = {
-  nonce: string;
-  returnTo: string;
-  applicationId: string | null;
-};
-
-function toBase64Url(value: string): string {
-  return Buffer.from(value, 'utf8').toString('base64url');
-}
-
-function fromBase64Url<T>(value: string): T {
-  return JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as T;
-}
-
-export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const applicationId = url.searchParams.get('applicationId');
-  const returnTo = '/apply/teachers';
-
-  const nonce = randomUUID();
-
-  const statePayload: OAuthStatePayload = {
-    nonce,
-    returnTo,
-    applicationId,
-  };
-
-  const state = toBase64Url(JSON.stringify(statePayload));
-  const cookieStore = await cookies();
-
-  cookieStore.set('google_oauth_state_nonce', nonce, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: 60 * 10,
-  });
-
-  const authUrl = buildGoogleOAuthUrl(state);
-
-  return NextResponse.redirect(authUrl);
-}
-
-export { fromBase64Url };
 </file>
 
 <file path="app/api/payments/prodamus/create/route.ts">
@@ -2289,479 +1146,6 @@ body {
 
 <file path="CLAUDE.md">
 @AGENTS.md
-</file>
-
-<file path="components/schools/school-file-upload.tsx">
-'use client';
-
-import { useEffect, useRef, useState } from 'react';
-import LoadingOverlay from '@/components/ui/loading-overlay';
-
-type UploadedFileItem = {
-  id: string;
-  name: string;
-  originalName: string | null;
-  size: number | null;
-  url: string | null;
-};
-
-type SchoolFileUploadProps = {
-  applicationId: string | null;
-  programType: 'primary' | 'secondary';
-  onUploaded?: () => void;
-  onFilesChange?: (count: number) => void;
-};
-
-export default function SchoolFileUpload({
-  applicationId,
-  programType,
-  onUploaded,
-  onFilesChange,
-}: SchoolFileUploadProps) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileItem[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
-  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
-
-  const uploadApi = `/api/applications/${programType}/upload`;
-  const deleteApi = `/api/applications/${programType}/delete-file`;
-
-  function openFileDialog() {
-    inputRef.current?.click();
-  }
-
-  function startGoogleDriveAuth() {
-    const query = applicationId
-      ? `?applicationId=${encodeURIComponent(applicationId)}`
-      : '';
-    window.location.href = `/api/google/oauth/start${query}`;
-  }
-
-  async function loadUploadedFiles(currentApplicationId: string) {
-    try {
-      setIsLoadingFiles(true);
-      const res = await fetch(
-        `${uploadApi}?applicationId=${encodeURIComponent(currentApplicationId)}`,
-        { method: 'GET', cache: 'no-store' }
-      );
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        throw new Error(json?.error?.message || 'Не удалось загрузить список файлов');
-      }
-      const nextFiles = Array.isArray(json?.data?.files) ? json.data.files : [];
-      setUploadedFiles(nextFiles);
-      onFilesChange?.(nextFiles.length);
-    } catch (e: any) {
-      alert(e.message || 'Не удалось загрузить список файлов');
-    } finally {
-      setIsLoadingFiles(false);
-    }
-  }
-
-  useEffect(() => {
-    if (!applicationId) {
-      setUploadedFiles([]);
-      onFilesChange?.(0);
-      return;
-    }
-    loadUploadedFiles(applicationId);
-  }, [applicationId]);
-
-  async function uploadSelectedFiles(selectedFiles: File[]) {
-    if (!applicationId) {
-      alert('Сначала создай заявку');
-      return;
-    }
-    if (!selectedFiles.length) return;
-
-    try {
-      setIsUploading(true);
-      setPendingFiles(selectedFiles);
-
-      const formData = new FormData();
-      formData.append('applicationId', applicationId);
-      selectedFiles.forEach((file) => formData.append('files', file));
-
-      const res = await fetch(uploadApi, {
-        method: 'POST',
-        body: formData,
-      });
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        if (json?.error?.code === 'GOOGLE_DRIVE_AUTH_REQUIRED') {
-          startGoogleDriveAuth();
-          return;
-        }
-        throw new Error(json?.error?.message || 'Ошибка загрузки');
-      }
-
-      const newlyUploaded = Array.isArray(json?.data?.uploaded) ? json.data.uploaded : [];
-      const nextFiles = [...uploadedFiles, ...newlyUploaded];
-      setUploadedFiles(nextFiles);
-      onFilesChange?.(nextFiles.length);
-      onUploaded?.();
-      setPendingFiles([]);
-    } catch (e: any) {
-      alert(e.message);
-    } finally {
-      setIsUploading(false);
-      if (inputRef.current) inputRef.current.value = '';
-    }
-  }
-
-  async function handleSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const selected = Array.from(e.target.files || []) as File[];
-    await uploadSelectedFiles(selected);
-  }
-
-  async function removeUploadedFile(fileId: string) {
-    if (!applicationId) {
-      alert('Нет applicationId');
-      return;
-    }
-    try {
-      setDeletingFileId(fileId);
-      const res = await fetch(deleteApi, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ applicationId, fileId }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        if (json?.error?.code === 'GOOGLE_DRIVE_AUTH_REQUIRED') {
-          startGoogleDriveAuth();
-          return;
-        }
-        throw new Error(json?.error?.message || 'Не удалось удалить файл');
-      }
-      const nextFiles = uploadedFiles.filter((file) => file.id !== fileId);
-      setUploadedFiles(nextFiles);
-      onFilesChange?.(nextFiles.length);
-    } catch (e: any) {
-      alert(e.message || 'Не удалось удалить файл');
-    } finally {
-      setDeletingFileId(null);
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      {(isUploading || isLoadingFiles) && (
-        <LoadingOverlay text={isUploading ? 'Загрузка...' : 'Загрузка файлов...'} />
-      )}
-      <input ref={inputRef} type="file" multiple hidden onChange={handleSelect} />
-      <button type="button" onClick={openFileDialog} className="rounded-xl bg-black px-5 py-3 text-white">
-        Выбрать файл
-      </button>
-
-      {pendingFiles.length > 0 && (
-        <div className="space-y-2">
-          {pendingFiles.map((file, index) => (
-            <div key={`${file.name}-${index}`} className="flex items-center justify-between rounded bg-slate-100 px-3 py-2 text-sm">
-              <span className="truncate">{file.name}</span>
-              <span className="text-slate-500">загружается...</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {uploadedFiles.length > 0 && (
-        <div className="space-y-2">
-          {uploadedFiles.map((file) => (
-            <div key={file.id} className="flex items-center justify-between gap-3 rounded bg-slate-100 px-3 py-2 text-sm">
-              <div className="min-w-0 flex-1">
-                {file.url ? (
-                  <a href={file.url} target="_blank" rel="noreferrer" className="block truncate text-slate-900 underline underline-offset-2">
-                    {file.name}
-                  </a>
-                ) : (
-                  <span className="block truncate text-slate-900">{file.name}</span>
-                )}
-                {file.originalName && file.originalName !== file.name ? (
-                  <div className="truncate text-xs text-slate-500">исходный файл: {file.originalName}</div>
-                ) : null}
-              </div>
-              <button
-                type="button"
-                onClick={() => removeUploadedFile(file.id)}
-                disabled={deletingFileId === file.id}
-                className="shrink-0 text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {deletingFileId === file.id ? 'удаление...' : 'удалить'}
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-</file>
-
-<file path="components/teachers/file-upload.tsx">
-'use client';
-
-import { useEffect, useRef, useState } from 'react';
-import LoadingOverlay from '@/components/ui/loading-overlay';
-
-type UploadedFileItem = {
-  id: string;
-  name: string;
-  originalName: string | null;
-  size: number | null;
-  url: string | null;
-};
-
-type FileUploadProps = {
-  applicationId: string | null;
-  onUploaded?: () => void;
-  onFilesChange?: (count: number) => void;
-};
-
-export default function FileUpload({
-  applicationId,
-  onUploaded,
-  onFilesChange,
-}: FileUploadProps) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
-
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileItem[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
-  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
-
-  function openFileDialog() {
-    inputRef.current?.click();
-  }
-
-  function startGoogleDriveAuth() {
-    const query = applicationId
-      ? `?applicationId=${encodeURIComponent(applicationId)}`
-      : '';
-
-    window.location.href = `/api/google/oauth/start${query}`;
-  }
-
-  async function loadUploadedFiles(currentApplicationId: string) {
-    try {
-      setIsLoadingFiles(true);
-
-      const res = await fetch(
-        `/api/applications/teachers/upload?applicationId=${encodeURIComponent(currentApplicationId)}`,
-        {
-          method: 'GET',
-          cache: 'no-store',
-        }
-      );
-
-      const json = await res.json();
-
-      if (!res.ok || !json.ok) {
-        throw new Error(json?.error?.message || 'Не удалось загрузить список файлов');
-      }
-
-      const nextFiles = Array.isArray(json?.data?.files) ? json.data.files : [];
-      setUploadedFiles(nextFiles);
-      onFilesChange?.(nextFiles.length);
-    } catch (e: any) {
-      alert(e.message || 'Не удалось загрузить список файлов');
-    } finally {
-      setIsLoadingFiles(false);
-    }
-  }
-
-  useEffect(() => {
-    if (!applicationId) {
-      setUploadedFiles([]);
-      onFilesChange?.(0);
-      return;
-    }
-
-    loadUploadedFiles(applicationId);
-  }, [applicationId]);
-
-  async function uploadSelectedFiles(selectedFiles: File[]) {
-    if (!applicationId) {
-      alert('Сначала создай заявку');
-      return;
-    }
-
-    if (!selectedFiles.length) {
-      return;
-    }
-
-    try {
-      setIsUploading(true);
-      setPendingFiles(selectedFiles);
-
-      const formData = new FormData();
-      formData.append('applicationId', applicationId);
-
-      selectedFiles.forEach((file) => formData.append('files', file));
-
-      const res = await fetch('/api/applications/teachers/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const json = await res.json();
-
-      if (!res.ok || !json.ok) {
-        if (json?.error?.code === 'GOOGLE_DRIVE_AUTH_REQUIRED') {
-          startGoogleDriveAuth();
-          return;
-        }
-
-        throw new Error(json?.error?.message || 'Ошибка загрузки');
-      }
-
-      const newlyUploaded = Array.isArray(json?.data?.uploaded)
-        ? json.data.uploaded
-        : [];
-
-      const nextFiles = [...uploadedFiles, ...newlyUploaded];
-      setUploadedFiles(nextFiles);
-      onFilesChange?.(nextFiles.length);
-      onUploaded?.();
-      setPendingFiles([]);
-    } catch (e: any) {
-      alert(e.message);
-    } finally {
-      setIsUploading(false);
-      if (inputRef.current) {
-        inputRef.current.value = '';
-      }
-    }
-  }
-
-  async function handleSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const selected = Array.from(e.target.files || []) as File[];
-    await uploadSelectedFiles(selected);
-  }
-
-  async function removeUploadedFile(fileId: string) {
-    if (!applicationId) {
-      alert('Нет applicationId');
-      return;
-    }
-
-    try {
-      setDeletingFileId(fileId);
-
-      const res = await fetch('/api/applications/teachers/delete-file', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          applicationId,
-          fileId,
-        }),
-      });
-
-      const json = await res.json();
-
-      if (!res.ok || !json.ok) {
-        if (json?.error?.code === 'GOOGLE_DRIVE_AUTH_REQUIRED') {
-          startGoogleDriveAuth();
-          return;
-        }
-
-        throw new Error(json?.error?.message || 'Не удалось удалить файл');
-      }
-
-      const nextFiles = uploadedFiles.filter((file) => file.id !== fileId);
-      setUploadedFiles(nextFiles);
-      onFilesChange?.(nextFiles.length);
-    } catch (e: any) {
-      alert(e.message || 'Не удалось удалить файл');
-    } finally {
-      setDeletingFileId(null);
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      {(isUploading || isLoadingFiles) && (
-        <LoadingOverlay text={isUploading ? 'Загрузка...' : 'Загрузка файлов...'} />
-      )}
-
-      <input
-        ref={inputRef}
-        type="file"
-        multiple
-        hidden
-        onChange={handleSelect}
-      />
-
-      <button
-        type="button"
-        onClick={openFileDialog}
-        className="rounded-xl bg-black px-5 py-3 text-white"
-      >
-        Выбрать файл
-      </button>
-
-      {pendingFiles.length > 0 && (
-        <div className="space-y-2">
-          {pendingFiles.map((file, index) => (
-            <div
-              key={`${file.name}-${index}`}
-              className="flex items-center justify-between rounded bg-slate-100 px-3 py-2 text-sm"
-            >
-              <span className="truncate">{file.name}</span>
-              <span className="text-slate-500">загружается...</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {uploadedFiles.length > 0 && (
-        <div className="space-y-2">
-          {uploadedFiles.map((file) => (
-            <div
-              key={file.id}
-              className="flex items-center justify-between gap-3 rounded bg-slate-100 px-3 py-2 text-sm"
-            >
-              <div className="min-w-0 flex-1">
-                {file.url ? (
-                  <a
-                    href={file.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block truncate text-slate-900 underline underline-offset-2"
-                  >
-                    {file.name}
-                  </a>
-                ) : (
-                  <span className="block truncate text-slate-900">{file.name}</span>
-                )}
-
-                {file.originalName && file.originalName !== file.name ? (
-                  <div className="truncate text-xs text-slate-500">
-                    исходный файл: {file.originalName}
-                  </div>
-                ) : null}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => removeUploadedFile(file.id)}
-                disabled={deletingFileId === file.id}
-                className="shrink-0 text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {deletingFileId === file.id ? 'удаление...' : 'удалить'}
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 </file>
 
 <file path="components/teachers/steps/step-1-personal.tsx">
@@ -4901,6 +3285,64 @@ export async function POST(req: Request) {
 }
 </file>
 
+<file path="app/api/applications/primary/delete-file/route.ts">
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { deleteFileFromDrive } from '@/lib/google/drive';
+
+export const runtime = 'nodejs';
+
+function jsonError(status: number, code: string, message: string) {
+  return Response.json({ ok: false, error: { code, message } }, { status });
+}
+
+export async function POST(request: Request): Promise<Response> {
+  try {
+    const body = await request.json();
+    const applicationId = body.applicationId?.trim();
+    const fileId = body.fileId?.trim();
+
+    if (!applicationId) {
+      return jsonError(400, 'APPLICATION_ID_REQUIRED', 'Не передан applicationId.');
+    }
+    if (!fileId) {
+      return jsonError(400, 'FILE_ID_REQUIRED', 'Не передан fileId.');
+    }
+
+    const supabase = createServerSupabaseClient();
+
+    const { data: existingFile, error: fileLoadError } = await supabase
+      .from('application_files')
+      .select('id, application_id, drive_file_id')
+      .eq('id', fileId)
+      .eq('application_id', applicationId)
+      .single();
+
+    if (fileLoadError || !existingFile) {
+      return jsonError(404, 'FILE_NOT_FOUND', 'Файл не найден.');
+    }
+
+    if (existingFile.drive_file_id) {
+      await deleteFileFromDrive({ fileId: existingFile.drive_file_id });
+    }
+
+    const { error: deleteDbError } = await supabase
+      .from('application_files')
+      .delete()
+      .eq('id', existingFile.id)
+      .eq('application_id', applicationId);
+
+    if (deleteDbError) {
+      return jsonError(500, 'FILE_DB_DELETE_FAILED', 'Файл удалён из Google Drive, но не из базы.');
+    }
+
+    return Response.json({ ok: true, data: { deletedFileId: existingFile.id } });
+  } catch (err) {
+    console.error('PRIMARY DELETE FILE ERROR:', err);
+    return jsonError(500, 'FILE_DELETE_FAILED', err instanceof Error ? err.message : 'Не удалось удалить файл.');
+  }
+}
+</file>
+
 <file path="app/api/applications/primary/update-step/route.ts">
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
@@ -5020,6 +3462,631 @@ export async function POST(req: Request) {
       { ok: false, error: { message: e.message || 'Ошибка обновления' } },
       { status: 500 }
     );
+  }
+}
+</file>
+
+<file path="app/api/applications/primary/upload/route.ts">
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { uploadFileToDrive } from '@/lib/google/drive';
+
+export const runtime = 'nodejs';
+
+function jsonError(status: number, code: string, message: string) {
+  return Response.json({ ok: false, error: { code, message } }, { status });
+}
+
+function sanitizeFileNamePart(str: string) {
+  return str.trim().replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function getFileExtension(fileName: string, mimeType?: string | null) {
+  const dotIndex = fileName.lastIndexOf('.');
+  if (dotIndex > -1 && dotIndex < fileName.length - 1) return fileName.slice(dotIndex);
+  const map: Record<string, string> = {
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/webp': '.webp',
+    'application/pdf': '.pdf',
+  };
+  return map[mimeType || ''] || '';
+}
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const applicationId = url.searchParams.get('applicationId');
+  if (!applicationId) {
+    return jsonError(400, 'APPLICATION_ID_REQUIRED', 'Нет applicationId');
+  }
+
+  const supabase = createServerSupabaseClient();
+  const { data: files, error } = await supabase
+    .from('application_files')
+    .select('id, normalized_file_name, original_file_name, file_size_bytes, drive_web_view_link, created_at')
+    .eq('application_id', applicationId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    return jsonError(500, 'FILES_LOAD_FAILED', 'Не удалось загрузить список файлов');
+  }
+
+  return Response.json({
+    ok: true,
+    data: {
+      files: (files || []).map((f) => ({
+        id: f.id,
+        name: f.normalized_file_name || f.original_file_name,
+        originalName: f.original_file_name,
+        size: f.file_size_bytes,
+        url: f.drive_web_view_link ?? null,
+      })),
+    },
+  });
+}
+
+export async function POST(request: Request) {
+  try {
+    const formData = await request.formData();
+    const applicationId = formData.get('applicationId')?.toString();
+    if (!applicationId) {
+      return jsonError(400, 'APPLICATION_ID_REQUIRED', 'Не передан applicationId.');
+    }
+
+    const files = formData.getAll('files') as File[];
+    if (!files.length) {
+      return jsonError(400, 'FILES_REQUIRED', 'Не выбраны файлы.');
+    }
+
+    const folderId = process.env.GOOGLE_DRIVE_PRIMARY_FOLDER_ID;
+    if (!folderId) {
+      throw new Error('GOOGLE_DRIVE_PRIMARY_FOLDER_ID не задан');
+    }
+
+    const supabase = createServerSupabaseClient();
+
+    const { data: app, error: appError } = await supabase
+      .from('applications')
+      .select('id')
+      .eq('id', applicationId)
+      .single();
+    if (appError || !app) {
+      return jsonError(404, 'APPLICATION_NOT_FOUND', 'Заявка не найдена.');
+    }
+
+    const { data: details, error: detailsError } = await supabase
+      .from('primary_application_details')
+      .select('candidate_first_name, candidate_surname, date_of_birth')
+      .eq('application_id', applicationId)
+      .single();
+    if (detailsError || !details) {
+      return jsonError(404, 'APPLICATION_DETAILS_NOT_FOUND', 'Детали заявки не найдены.');
+    }
+
+    const results = [];
+    for (const file of files) {
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      const firstName = sanitizeFileNamePart(details.candidate_first_name || '');
+      const surname = sanitizeFileNamePart(details.candidate_surname || '');
+      const dob = details.date_of_birth ? new Date(details.date_of_birth).toISOString().slice(0, 10) : '';
+      const baseName = [firstName, surname, dob].filter(Boolean).join(' ');
+      const extension = getFileExtension(file.name, file.type);
+      const finalFileName = baseName ? `${baseName}${extension}` : `${Date.now()}${extension}`;
+
+      const upload = await uploadFileToDrive({
+        buffer,
+        fileName: finalFileName,
+        mimeType: file.type,
+        folderId,
+      });
+
+      const { data: insertedFile, error: dbError } = await supabase
+        .from('application_files')
+        .insert({
+          application_id: app.id,
+          category: 'other',
+          original_file_name: file.name,
+          mime_type: file.type,
+          file_size_bytes: file.size,
+          upload_status: 'uploaded',
+          storage_provider: 'google_drive',
+          drive_folder_id: folderId,
+          drive_file_id: upload.fileId,
+          drive_web_view_link: upload.webViewLink,
+          drive_download_link: upload.downloadLink,
+          normalized_file_name: finalFileName,
+        })
+        .select('id, normalized_file_name, original_file_name, file_size_bytes, drive_web_view_link')
+        .single();
+
+      if (dbError || !insertedFile) {
+        return jsonError(500, 'FILE_DB_SAVE_FAILED', 'Файл загружен, но не сохранён в базе.');
+      }
+
+      results.push({
+        id: insertedFile.id,
+        name: insertedFile.normalized_file_name || insertedFile.original_file_name,
+        originalName: insertedFile.original_file_name,
+        size: insertedFile.file_size_bytes,
+        fileId: upload.fileId,
+        url: insertedFile.drive_web_view_link ?? null,
+      });
+    }
+
+    return Response.json({ ok: true, data: { uploaded: results } });
+  } catch (err: any) {
+    console.error('PRIMARY UPLOAD ERROR:', err);
+    return jsonError(500, 'UPLOAD_FAILED', err.message || 'Не удалось загрузить файл.');
+  }
+}
+</file>
+
+<file path="app/api/applications/secondary/delete-file/route.ts">
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { deleteFileFromDrive } from '@/lib/google/drive';
+
+export const runtime = 'nodejs';
+
+function jsonError(status: number, code: string, message: string) {
+  return Response.json({ ok: false, error: { code, message } }, { status });
+}
+
+export async function POST(request: Request): Promise<Response> {
+  try {
+    const body = await request.json();
+    const applicationId = body.applicationId?.trim();
+    const fileId = body.fileId?.trim();
+
+    if (!applicationId) {
+      return jsonError(400, 'APPLICATION_ID_REQUIRED', 'Не передан applicationId.');
+    }
+    if (!fileId) {
+      return jsonError(400, 'FILE_ID_REQUIRED', 'Не передан fileId.');
+    }
+
+    const supabase = createServerSupabaseClient();
+
+    const { data: existingFile, error: fileLoadError } = await supabase
+      .from('application_files')
+      .select('id, application_id, drive_file_id')
+      .eq('id', fileId)
+      .eq('application_id', applicationId)
+      .single();
+
+    if (fileLoadError || !existingFile) {
+      return jsonError(404, 'FILE_NOT_FOUND', 'Файл не найден.');
+    }
+
+    if (existingFile.drive_file_id) {
+      await deleteFileFromDrive({ fileId: existingFile.drive_file_id });
+    }
+
+    const { error: deleteDbError } = await supabase
+      .from('application_files')
+      .delete()
+      .eq('id', existingFile.id)
+      .eq('application_id', applicationId);
+
+    if (deleteDbError) {
+      return jsonError(500, 'FILE_DB_DELETE_FAILED', 'Файл удалён из Google Drive, но не из базы.');
+    }
+
+    return Response.json({ ok: true, data: { deletedFileId: existingFile.id } });
+  } catch (err) {
+    console.error('SECONDARY DELETE FILE ERROR:', err);
+    return jsonError(500, 'FILE_DELETE_FAILED', err instanceof Error ? err.message : 'Не удалось удалить файл.');
+  }
+}
+</file>
+
+<file path="app/api/applications/secondary/upload/route.ts">
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { uploadFileToDrive } from '@/lib/google/drive';
+
+export const runtime = 'nodejs';
+
+function jsonError(status: number, code: string, message: string) {
+  return Response.json({ ok: false, error: { code, message } }, { status });
+}
+
+function sanitizeFileNamePart(str: string) {
+  return str.trim().replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function getFileExtension(fileName: string, mimeType?: string | null) {
+  const dotIndex = fileName.lastIndexOf('.');
+  if (dotIndex > -1 && dotIndex < fileName.length - 1) return fileName.slice(dotIndex);
+  const map: Record<string, string> = {
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/webp': '.webp',
+    'application/pdf': '.pdf',
+  };
+  return map[mimeType || ''] || '';
+}
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const applicationId = url.searchParams.get('applicationId');
+  if (!applicationId) {
+    return jsonError(400, 'APPLICATION_ID_REQUIRED', 'Нет applicationId');
+  }
+
+  const supabase = createServerSupabaseClient();
+  const { data: files, error } = await supabase
+    .from('application_files')
+    .select('id, normalized_file_name, original_file_name, file_size_bytes, drive_web_view_link, created_at')
+    .eq('application_id', applicationId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    return jsonError(500, 'FILES_LOAD_FAILED', 'Не удалось загрузить список файлов');
+  }
+
+  return Response.json({
+    ok: true,
+    data: {
+      files: (files || []).map((f) => ({
+        id: f.id,
+        name: f.normalized_file_name || f.original_file_name,
+        originalName: f.original_file_name,
+        size: f.file_size_bytes,
+        url: f.drive_web_view_link ?? null,
+      })),
+    },
+  });
+}
+
+export async function POST(request: Request) {
+  try {
+    const formData = await request.formData();
+    const applicationId = formData.get('applicationId')?.toString();
+    if (!applicationId) {
+      return jsonError(400, 'APPLICATION_ID_REQUIRED', 'Не передан applicationId.');
+    }
+
+    const files = formData.getAll('files') as File[];
+    if (!files.length) {
+      return jsonError(400, 'FILES_REQUIRED', 'Не выбраны файлы.');
+    }
+
+    const folderId = process.env.GOOGLE_DRIVE_SECONDARY_FOLDER_ID;
+    if (!folderId) {
+      throw new Error('GOOGLE_DRIVE_SECONDARY_FOLDER_ID не задан');
+    }
+
+    const supabase = createServerSupabaseClient();
+
+    const { data: app, error: appError } = await supabase
+      .from('applications')
+      .select('id')
+      .eq('id', applicationId)
+      .single();
+    if (appError || !app) {
+      return jsonError(404, 'APPLICATION_NOT_FOUND', 'Заявка не найдена.');
+    }
+
+    const { data: details, error: detailsError } = await supabase
+      .from('secondary_application_details')
+      .select('candidate_first_name, candidate_surname, date_of_birth')
+      .eq('application_id', applicationId)
+      .single();
+    if (detailsError || !details) {
+      return jsonError(404, 'APPLICATION_DETAILS_NOT_FOUND', 'Детали заявки не найдены.');
+    }
+
+    const results = [];
+    for (const file of files) {
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      const firstName = sanitizeFileNamePart(details.candidate_first_name || '');
+      const surname = sanitizeFileNamePart(details.candidate_surname || '');
+      const dob = details.date_of_birth ? new Date(details.date_of_birth).toISOString().slice(0, 10) : '';
+      const baseName = [firstName, surname, dob].filter(Boolean).join(' ');
+      const extension = getFileExtension(file.name, file.type);
+      const finalFileName = baseName ? `${baseName}${extension}` : `${Date.now()}${extension}`;
+
+      const upload = await uploadFileToDrive({
+        buffer,
+        fileName: finalFileName,
+        mimeType: file.type,
+        folderId,
+      });
+
+      const { data: insertedFile, error: dbError } = await supabase
+        .from('application_files')
+        .insert({
+          application_id: app.id,
+          category: 'other',
+          original_file_name: file.name,
+          mime_type: file.type,
+          file_size_bytes: file.size,
+          upload_status: 'uploaded',
+          storage_provider: 'google_drive',
+          drive_folder_id: folderId,
+          drive_file_id: upload.fileId,
+          drive_web_view_link: upload.webViewLink,
+          drive_download_link: upload.downloadLink,
+          normalized_file_name: finalFileName,
+        })
+        .select('id, normalized_file_name, original_file_name, file_size_bytes, drive_web_view_link')
+        .single();
+
+      if (dbError || !insertedFile) {
+        return jsonError(500, 'FILE_DB_SAVE_FAILED', 'Файл загружен, но не сохранён в базе.');
+      }
+
+      results.push({
+        id: insertedFile.id,
+        name: insertedFile.normalized_file_name || insertedFile.original_file_name,
+        originalName: insertedFile.original_file_name,
+        size: insertedFile.file_size_bytes,
+        fileId: upload.fileId,
+        url: insertedFile.drive_web_view_link ?? null,
+      });
+    }
+
+    return Response.json({ ok: true, data: { uploaded: results } });
+  } catch (err: any) {
+    console.error('SECONDARY UPLOAD ERROR:', err);
+    return jsonError(500, 'UPLOAD_FAILED', err.message || 'Не удалось загрузить файл.');
+  }
+}
+</file>
+
+<file path="app/api/applications/teachers/delete-file/route.ts">
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { deleteFileFromDrive } from '@/lib/google/drive';
+
+export const runtime = 'nodejs';
+
+function jsonError(status: number, code: string, message: string) {
+  return Response.json({ ok: false, error: { code, message } }, { status });
+}
+
+type DeleteFileBody = {
+  applicationId?: string;
+  fileId?: string;
+};
+
+export async function POST(request: Request): Promise<Response> {
+  try {
+    const body = (await request.json()) as DeleteFileBody;
+    const applicationId = body.applicationId?.trim();
+    const fileId = body.fileId?.trim();
+
+    if (!applicationId) {
+      return jsonError(400, 'APPLICATION_ID_REQUIRED', 'Не передан applicationId.');
+    }
+    if (!fileId) {
+      return jsonError(400, 'FILE_ID_REQUIRED', 'Не передан fileId.');
+    }
+
+    const supabase = createServerSupabaseClient();
+
+    const { data: existingFile, error: fileLoadError } = await supabase
+      .from('application_files')
+      .select('id, application_id, drive_file_id')
+      .eq('id', fileId)
+      .eq('application_id', applicationId)
+      .single();
+
+    if (fileLoadError || !existingFile) {
+      return jsonError(404, 'FILE_NOT_FOUND', 'Файл не найден.');
+    }
+
+    if (existingFile.drive_file_id) {
+      await deleteFileFromDrive({ fileId: existingFile.drive_file_id });
+    }
+
+    const { error: deleteDbError } = await supabase
+      .from('application_files')
+      .delete()
+      .eq('id', existingFile.id)
+      .eq('application_id', applicationId);
+
+    if (deleteDbError) {
+      console.error('DB delete file error:', deleteDbError);
+      return jsonError(500, 'FILE_DB_DELETE_FAILED', 'Файл удалён из Google Drive, но не удалён из системы.');
+    }
+
+    return Response.json({ ok: true, data: { deletedFileId: existingFile.id } });
+  } catch (err) {
+    console.error('DELETE FILE ERROR:', err);
+    return jsonError(500, 'FILE_DELETE_FAILED', err instanceof Error ? err.message : 'Не удалось удалить файл.');
+  }
+}
+</file>
+
+<file path="app/api/applications/teachers/upload/route.ts">
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createApplicationFolder, uploadFileToDrive } from '@/lib/google/drive';
+
+export const runtime = 'nodejs';
+
+function jsonError(status: number, code: string, message: string) {
+  return Response.json({ ok: false, error: { code, message } }, { status });
+}
+
+function sanitizeFileNamePart(value: string | null | undefined): string {
+  if (!value) return '';
+  return value.trim().replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ').replace(/\.+$/g, '');
+}
+
+function formatDateForFileName(value: string | null | undefined): string {
+  if (!value) return '';
+  const trimmed = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const date = new Date(trimmed);
+  if (Number.isNaN(date.getTime())) return sanitizeFileNamePart(trimmed);
+  return date.toISOString().slice(0, 10);
+}
+
+function getFileExtension(fileName: string, mimeType?: string | null): string {
+  const trimmedName = fileName.trim();
+  const dotIndex = trimmedName.lastIndexOf('.');
+  if (dotIndex > -1 && dotIndex < trimmedName.length - 1) {
+    return trimmedName.slice(dotIndex);
+  }
+  const mimeToExt: Record<string, string> = {
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/webp': '.webp',
+    'application/pdf': '.pdf',
+  };
+  return mimeToExt[mimeType || ''] || '';
+}
+
+function buildUploadedFileName(params: {
+  firstName?: string | null;
+  surname?: string | null;
+  dateOfBirth?: string | null;
+  originalFileName: string;
+  mimeType?: string | null;
+}): string {
+  const firstName = sanitizeFileNamePart(params.firstName);
+  const surname = sanitizeFileNamePart(params.surname);
+  const dateOfBirth = formatDateForFileName(params.dateOfBirth);
+  const baseName = [firstName, surname, dateOfBirth].filter(Boolean).join(' ');
+  const extension = getFileExtension(params.originalFileName, params.mimeType);
+  return baseName ? `${baseName}${extension}` : `${Date.now()}${extension}`;
+}
+
+export async function GET(request: Request): Promise<Response> {
+  try {
+    const url = new URL(request.url);
+    const applicationId = url.searchParams.get('applicationId');
+    if (!applicationId) {
+      return jsonError(400, 'APPLICATION_ID_REQUIRED', 'Не передан applicationId.');
+    }
+
+    const supabase = createServerSupabaseClient();
+    const { data: files, error } = await supabase
+      .from('application_files')
+      .select('id, normalized_file_name, original_file_name, file_size_bytes, drive_web_view_link, created_at')
+      .eq('application_id', applicationId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('GET upload files error:', error);
+      return jsonError(500, 'FILES_LOAD_FAILED', 'Не удалось загрузить список файлов.');
+    }
+
+    return Response.json({
+      ok: true,
+      data: {
+        files: (files || []).map((file) => ({
+          id: file.id,
+          name: file.normalized_file_name || file.original_file_name,
+          originalName: file.original_file_name || null,
+          size: file.file_size_bytes ?? null,
+          url: file.drive_web_view_link ?? null,
+        })),
+      },
+    });
+  } catch (err) {
+    console.error('GET /upload ERROR:', err);
+    return jsonError(500, 'FILES_LOAD_FAILED', err instanceof Error ? err.message : 'Не удалось загрузить список файлов.');
+  }
+}
+
+export async function POST(request: Request): Promise<Response> {
+  try {
+    const formData = await request.formData();
+    const applicationId = formData.get('applicationId')?.toString();
+    if (!applicationId) {
+      return jsonError(400, 'APPLICATION_ID_REQUIRED', 'Не передан applicationId.');
+    }
+
+    const files = formData.getAll('files') as File[];
+    if (!files.length) {
+      return jsonError(400, 'FILES_REQUIRED', 'Не выбраны файлы.');
+    }
+
+    const supabase = createServerSupabaseClient();
+
+    const { data: app, error: appError } = await supabase
+      .from('applications')
+      .select('id, public_id')
+      .eq('id', applicationId)
+      .single();
+
+    if (appError || !app) {
+      return jsonError(404, 'APPLICATION_NOT_FOUND', 'Заявка не найдена.');
+    }
+
+    const { data: details, error: detailsError } = await supabase
+      .from('teacher_application_details')
+      .select('first_name, surname, date_of_birth')
+      .eq('application_id', applicationId)
+      .single();
+
+    if (detailsError || !details) {
+      return jsonError(404, 'APPLICATION_DETAILS_NOT_FOUND', 'Детали заявки не найдены.');
+    }
+
+    const { folderId } = await createApplicationFolder();
+
+    const results = [];
+    for (const file of files) {
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      const finalFileName = buildUploadedFileName({
+        firstName: details.first_name,
+        surname: details.surname,
+        dateOfBirth: details.date_of_birth,
+        originalFileName: file.name,
+        mimeType: file.type,
+      });
+
+      const upload = await uploadFileToDrive({
+        buffer,
+        fileName: finalFileName,
+        mimeType: file.type,
+        folderId,
+      });
+
+      const { data: insertedFile, error: dbError } = await supabase
+        .from('application_files')
+        .insert({
+          application_id: app.id,
+          category: 'other',
+          original_file_name: file.name,
+          mime_type: file.type,
+          file_size_bytes: file.size,
+          upload_status: 'uploaded',
+          storage_provider: 'google_drive',
+          drive_folder_id: folderId,
+          drive_file_id: upload.fileId,
+          drive_web_view_link: upload.webViewLink,
+          drive_download_link: upload.downloadLink,
+          normalized_file_name: finalFileName,
+        })
+        .select('id, normalized_file_name, original_file_name, file_size_bytes, drive_web_view_link')
+        .single();
+
+      if (dbError || !insertedFile) {
+        console.error('DB insert file error:', dbError);
+        return jsonError(500, 'FILE_DB_SAVE_FAILED', 'Файл загружен, но не удалось сохранить его в системе.');
+      }
+
+      results.push({
+        id: insertedFile.id,
+        name: insertedFile.normalized_file_name || insertedFile.original_file_name,
+        originalName: insertedFile.original_file_name || null,
+        size: insertedFile.file_size_bytes ?? null,
+        fileId: upload.fileId,
+        url: insertedFile.drive_web_view_link ?? null,
+      });
+    }
+
+    return Response.json({ ok: true, data: { uploaded: results } });
+  } catch (err) {
+    console.error('UPLOAD ERROR:', err);
+    return jsonError(500, 'UPLOAD_FAILED', err instanceof Error ? err.message : 'Не удалось загрузить файл.');
   }
 }
 </file>
@@ -5629,6 +4696,197 @@ export default function Step3Review({
 }
 </file>
 
+<file path="components/schools/school-file-upload.tsx">
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import LoadingOverlay from '@/components/ui/loading-overlay';
+
+type UploadedFileItem = {
+  id: string;
+  name: string;
+  originalName: string | null;
+  size: number | null;
+  url: string | null;
+};
+
+type SchoolFileUploadProps = {
+  applicationId: string | null;
+  programType: 'primary' | 'secondary';
+  onUploaded?: () => void;
+  onFilesChange?: (count: number) => void;
+};
+
+export default function SchoolFileUpload({
+  applicationId,
+  programType,
+  onUploaded,
+  onFilesChange,
+}: SchoolFileUploadProps) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileItem[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+
+  const uploadApi = `/api/applications/${programType}/upload`;
+  const deleteApi = `/api/applications/${programType}/delete-file`;
+
+  function openFileDialog() {
+    inputRef.current?.click();
+  }
+
+  async function loadUploadedFiles(currentApplicationId: string) {
+    try {
+      setIsLoadingFiles(true);
+      const res = await fetch(
+        `${uploadApi}?applicationId=${encodeURIComponent(currentApplicationId)}`,
+        { method: 'GET', cache: 'no-store' }
+      );
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json?.error?.message || 'Не удалось загрузить список файлов');
+      }
+      const nextFiles = Array.isArray(json?.data?.files) ? json.data.files : [];
+      setUploadedFiles(nextFiles);
+      onFilesChange?.(nextFiles.length);
+    } catch (e: any) {
+      alert(e.message || 'Не удалось загрузить список файлов');
+    } finally {
+      setIsLoadingFiles(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!applicationId) {
+      setUploadedFiles([]);
+      onFilesChange?.(0);
+      return;
+    }
+    loadUploadedFiles(applicationId);
+  }, [applicationId]);
+
+  async function uploadSelectedFiles(selectedFiles: File[]) {
+    if (!applicationId) {
+      alert('Сначала создай заявку');
+      return;
+    }
+    if (!selectedFiles.length) return;
+
+    try {
+      setIsUploading(true);
+      setPendingFiles(selectedFiles);
+
+      const formData = new FormData();
+      formData.append('applicationId', applicationId);
+      selectedFiles.forEach((file) => formData.append('files', file));
+
+      const res = await fetch(uploadApi, { method: 'POST', body: formData });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json?.error?.message || 'Ошибка загрузки');
+      }
+
+      const newlyUploaded = Array.isArray(json?.data?.uploaded) ? json.data.uploaded : [];
+      const nextFiles = [...uploadedFiles, ...newlyUploaded];
+      setUploadedFiles(nextFiles);
+      onFilesChange?.(nextFiles.length);
+      onUploaded?.();
+      setPendingFiles([]);
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setIsUploading(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  }
+
+  async function handleSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = Array.from(e.target.files || []) as File[];
+    await uploadSelectedFiles(selected);
+  }
+
+  async function removeUploadedFile(fileId: string) {
+    if (!applicationId) {
+      alert('Нет applicationId');
+      return;
+    }
+    try {
+      setDeletingFileId(fileId);
+      const res = await fetch(deleteApi, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applicationId, fileId }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json?.error?.message || 'Не удалось удалить файл');
+      }
+      const nextFiles = uploadedFiles.filter((file) => file.id !== fileId);
+      setUploadedFiles(nextFiles);
+      onFilesChange?.(nextFiles.length);
+    } catch (e: any) {
+      alert(e.message || 'Не удалось удалить файл');
+    } finally {
+      setDeletingFileId(null);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {(isUploading || isLoadingFiles) && (
+        <LoadingOverlay text={isUploading ? 'Загрузка...' : 'Загрузка файлов...'} />
+      )}
+      <input ref={inputRef} type="file" multiple hidden onChange={handleSelect} />
+      <button type="button" onClick={openFileDialog} className="rounded-xl bg-black px-5 py-3 text-white">
+        Выбрать файл
+      </button>
+
+      {pendingFiles.length > 0 && (
+        <div className="space-y-2">
+          {pendingFiles.map((file, index) => (
+            <div key={`${file.name}-${index}`} className="flex items-center justify-between rounded bg-slate-100 px-3 py-2 text-sm">
+              <span className="truncate">{file.name}</span>
+              <span className="text-slate-500">загружается...</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {uploadedFiles.length > 0 && (
+        <div className="space-y-2">
+          {uploadedFiles.map((file) => (
+            <div key={file.id} className="flex items-center justify-between gap-3 rounded bg-slate-100 px-3 py-2 text-sm">
+              <div className="min-w-0 flex-1">
+                {file.url ? (
+                  <a href={file.url} target="_blank" rel="noreferrer" className="block truncate text-slate-900 underline underline-offset-2">
+                    {file.name}
+                  </a>
+                ) : (
+                  <span className="block truncate text-slate-900">{file.name}</span>
+                )}
+                {file.originalName && file.originalName !== file.name ? (
+                  <div className="truncate text-xs text-slate-500">исходный файл: {file.originalName}</div>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => removeUploadedFile(file.id)}
+                disabled={deletingFileId === file.id}
+                className="shrink-0 text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deletingFileId === file.id ? 'удаление...' : 'удалить'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+</file>
+
 <file path="components/schools/secondary/steps/step-2-course-files.tsx">
 'use client';
 
@@ -5848,6 +5106,195 @@ export default function Step3Review({
           </label>
         </div>
       </div>
+    </div>
+  );
+}
+</file>
+
+<file path="components/teachers/file-upload.tsx">
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import LoadingOverlay from '@/components/ui/loading-overlay';
+
+type UploadedFileItem = {
+  id: string;
+  name: string;
+  originalName: string | null;
+  size: number | null;
+  url: string | null;
+};
+
+type FileUploadProps = {
+  applicationId: string | null;
+  onUploaded?: () => void;
+  onFilesChange?: (count: number) => void;
+};
+
+export default function FileUpload({
+  applicationId,
+  onUploaded,
+  onFilesChange,
+}: FileUploadProps) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileItem[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+
+  function openFileDialog() {
+    inputRef.current?.click();
+  }
+
+  async function loadUploadedFiles(currentApplicationId: string) {
+    try {
+      setIsLoadingFiles(true);
+      const res = await fetch(
+        `/api/applications/teachers/upload?applicationId=${encodeURIComponent(currentApplicationId)}`,
+        { method: 'GET', cache: 'no-store' }
+      );
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json?.error?.message || 'Не удалось загрузить список файлов');
+      }
+      const nextFiles = Array.isArray(json?.data?.files) ? json.data.files : [];
+      setUploadedFiles(nextFiles);
+      onFilesChange?.(nextFiles.length);
+    } catch (e: any) {
+      alert(e.message || 'Не удалось загрузить список файлов');
+    } finally {
+      setIsLoadingFiles(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!applicationId) {
+      setUploadedFiles([]);
+      onFilesChange?.(0);
+      return;
+    }
+    loadUploadedFiles(applicationId);
+  }, [applicationId]);
+
+  async function uploadSelectedFiles(selectedFiles: File[]) {
+    if (!applicationId) {
+      alert('Сначала создай заявку');
+      return;
+    }
+    if (!selectedFiles.length) return;
+
+    try {
+      setIsUploading(true);
+      setPendingFiles(selectedFiles);
+
+      const formData = new FormData();
+      formData.append('applicationId', applicationId);
+      selectedFiles.forEach((file) => formData.append('files', file));
+
+      const res = await fetch('/api/applications/teachers/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json?.error?.message || 'Ошибка загрузки');
+      }
+
+      const newlyUploaded = Array.isArray(json?.data?.uploaded) ? json.data.uploaded : [];
+      const nextFiles = [...uploadedFiles, ...newlyUploaded];
+      setUploadedFiles(nextFiles);
+      onFilesChange?.(nextFiles.length);
+      onUploaded?.();
+      setPendingFiles([]);
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setIsUploading(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  }
+
+  async function handleSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = Array.from(e.target.files || []) as File[];
+    await uploadSelectedFiles(selected);
+  }
+
+  async function removeUploadedFile(fileId: string) {
+    if (!applicationId) {
+      alert('Нет applicationId');
+      return;
+    }
+    try {
+      setDeletingFileId(fileId);
+      const res = await fetch('/api/applications/teachers/delete-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applicationId, fileId }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json?.error?.message || 'Не удалось удалить файл');
+      }
+      const nextFiles = uploadedFiles.filter((file) => file.id !== fileId);
+      setUploadedFiles(nextFiles);
+      onFilesChange?.(nextFiles.length);
+    } catch (e: any) {
+      alert(e.message || 'Не удалось удалить файл');
+    } finally {
+      setDeletingFileId(null);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {(isUploading || isLoadingFiles) && (
+        <LoadingOverlay text={isUploading ? 'Загрузка...' : 'Загрузка файлов...'} />
+      )}
+      <input ref={inputRef} type="file" multiple hidden onChange={handleSelect} />
+      <button type="button" onClick={openFileDialog} className="rounded-xl bg-black px-5 py-3 text-white">
+        Выбрать файл
+      </button>
+
+      {pendingFiles.length > 0 && (
+        <div className="space-y-2">
+          {pendingFiles.map((file, index) => (
+            <div key={`${file.name}-${index}`} className="flex items-center justify-between rounded bg-slate-100 px-3 py-2 text-sm">
+              <span className="truncate">{file.name}</span>
+              <span className="text-slate-500">загружается...</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {uploadedFiles.length > 0 && (
+        <div className="space-y-2">
+          {uploadedFiles.map((file) => (
+            <div key={file.id} className="flex items-center justify-between gap-3 rounded bg-slate-100 px-3 py-2 text-sm">
+              <div className="min-w-0 flex-1">
+                {file.url ? (
+                  <a href={file.url} target="_blank" rel="noreferrer" className="block truncate text-slate-900 underline underline-offset-2">
+                    {file.name}
+                  </a>
+                ) : (
+                  <span className="block truncate text-slate-900">{file.name}</span>
+                )}
+                {file.originalName && file.originalName !== file.name ? (
+                  <div className="truncate text-xs text-slate-500">исходный файл: {file.originalName}</div>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => removeUploadedFile(file.id)}
+                disabled={deletingFileId === file.id}
+                className="shrink-0 text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deletingFileId === file.id ? 'удаление...' : 'удалить'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -6396,216 +5843,6 @@ export default function TeacherForm() {
       )}
     </div>
   );
-}
-</file>
-
-<file path="lib/google/drive.ts">
-import { google } from 'googleapis';
-import { Readable } from 'stream';
-
-function getEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`ENV ERROR: не задана переменная ${name}`);
-  }
-  return value;
-}
-
-function buildGoogleOAuthClient(params: {
-  accessToken?: string | null;
-  refreshToken?: string | null;
-}) {
-  const clientId = getEnv('GOOGLE_OAUTH_CLIENT_ID');
-  const clientSecret = getEnv('GOOGLE_OAUTH_CLIENT_SECRET');
-  const redirectUri = getEnv('GOOGLE_OAUTH_REDIRECT_URI');
-
-  const oauth2Client = new google.auth.OAuth2(
-    clientId,
-    clientSecret,
-    redirectUri
-  );
-
-  oauth2Client.setCredentials({
-    access_token: params.accessToken || undefined,
-    refresh_token: params.refreshToken || undefined,
-  });
-
-  return oauth2Client;
-}
-
-function getDrive(params: {
-  accessToken?: string | null;
-  refreshToken?: string | null;
-}) {
-  return google.drive({
-    version: 'v3',
-    auth: buildGoogleOAuthClient(params),
-  });
-}
-
-function logGoogleError(err: any) {
-  console.error('❌ GOOGLE DRIVE ERROR FULL:');
-
-  if (err?.response?.data) {
-    console.error('response.data:', JSON.stringify(err.response.data, null, 2));
-  }
-
-  if (err?.response?.status) {
-    console.error('status:', err.response.status);
-  }
-
-  if (err?.errors) {
-    console.error('errors:', err.errors);
-  }
-
-  console.error('message:', err?.message);
-  console.error('stack:', err?.stack);
-}
-
-export class GoogleDriveAuthRequiredError extends Error {
-  code = 'GOOGLE_DRIVE_AUTH_REQUIRED';
-
-  constructor(message = 'Требуется авторизация Google Drive.') {
-    super(message);
-    this.name = 'GoogleDriveAuthRequiredError';
-  }
-}
-
-export type UploadResult = {
-  fileId: string;
-  webViewLink: string | null;
-  downloadLink: string | null;
-};
-
-export function getFolderIdByProgram(programType: string): string {
-  switch (programType) {
-    case 'primary':
-      return getEnv('GOOGLE_DRIVE_PRIMARY_FOLDER_ID');
-    case 'secondary':
-      return getEnv('GOOGLE_DRIVE_SECONDARY_FOLDER_ID');
-    default:
-      return getEnv('GOOGLE_DRIVE_TEACHERS_FOLDER_ID');
-  }
-}
-
-export async function createApplicationFolder(): Promise<{ folderId: string }> {
-  try {
-    const rootFolderId = getEnv('GOOGLE_DRIVE_TEACHERS_FOLDER_ID');
-    console.log('📁 ROOT FOLDER:', rootFolderId);
-    console.log('✅ USING ROOT FOLDER WITHOUT NESTED FOLDERS');
-    return { folderId: rootFolderId };
-  } catch (err: any) {
-    console.error('❌ createApplicationFolder ERROR:');
-    logGoogleError(err);
-    throw new Error(
-      err?.message || 'Не удалось получить папку для загрузки файлов.'
-    );
-  }
-}
-
-export async function uploadFileToDrive(params: {
-  buffer: Buffer;
-  fileName: string;
-  mimeType?: string;
-  folderId: string;
-  accessToken?: string | null;
-  refreshToken?: string | null;
-}): Promise<UploadResult> {
-  try {
-    if (!params.accessToken && !params.refreshToken) {
-      throw new GoogleDriveAuthRequiredError();
-    }
-
-    const drive = getDrive({
-      accessToken: params.accessToken,
-      refreshToken: params.refreshToken,
-    });
-
-    const stream = Readable.from(params.buffer);
-
-    const res = await drive.files.create({
-      requestBody: {
-        name: params.fileName,
-        parents: [params.folderId],
-      },
-      media: {
-        mimeType: params.mimeType || 'application/octet-stream',
-        body: stream,
-      },
-      fields: 'id, webViewLink, webContentLink',
-      supportsAllDrives: true,
-    });
-
-    const fileId = res.data.id;
-
-    if (!fileId) {
-      throw new Error('Google не вернул id файла');
-    }
-
-    return {
-      fileId,
-      webViewLink: res.data.webViewLink ?? null,
-      downloadLink: res.data.webContentLink ?? null,
-    };
-  } catch (err: any) {
-    console.error('❌ uploadFileToDrive ERROR:');
-    logGoogleError(err);
-
-    const status = err?.response?.status;
-    const message = String(err?.message || '');
-
-    if (
-      err instanceof GoogleDriveAuthRequiredError ||
-      status === 401 ||
-      message.toLowerCase().includes('invalid credentials') ||
-      message.toLowerCase().includes('login required') ||
-      message.toLowerCase().includes('unauthorized')
-    ) {
-      throw new GoogleDriveAuthRequiredError();
-    }
-
-    throw new Error(err?.message || 'Ошибка загрузки файла в Google Drive');
-  }
-}
-
-export async function deleteFileFromDrive(params: {
-  fileId: string;
-  accessToken?: string | null;
-  refreshToken?: string | null;
-}): Promise<void> {
-  try {
-    if (!params.accessToken && !params.refreshToken) {
-      throw new GoogleDriveAuthRequiredError();
-    }
-
-    const drive = getDrive({
-      accessToken: params.accessToken,
-      refreshToken: params.refreshToken,
-    });
-
-    await drive.files.delete({
-      fileId: params.fileId,
-      supportsAllDrives: true,
-    });
-  } catch (err: any) {
-    console.error('❌ deleteFileFromDrive ERROR:');
-    logGoogleError(err);
-
-    const status = err?.response?.status;
-    const message = String(err?.message || '');
-
-    if (
-      err instanceof GoogleDriveAuthRequiredError ||
-      status === 401 ||
-      message.toLowerCase().includes('invalid credentials') ||
-      message.toLowerCase().includes('login required') ||
-      message.toLowerCase().includes('unauthorized')
-    ) {
-      throw new GoogleDriveAuthRequiredError();
-    }
-
-    throw new Error(err?.message || 'Ошибка удаления файла из Google Drive');
-  }
 }
 </file>
 
@@ -7719,6 +6956,122 @@ export default function SecondaryForm() {
       )}
     </div>
   );
+}
+</file>
+
+<file path="lib/google/drive.ts">
+import { google } from 'googleapis';
+import { Readable } from 'stream';
+
+function getEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`ENV ERROR: не задана переменная ${name}`);
+  }
+  return value;
+}
+
+// Создаёт OAuth2-клиент, который всегда использует refresh-токен
+function getDriveClient() {
+  const clientId = getEnv('GOOGLE_OAUTH_CLIENT_ID');
+  const clientSecret = getEnv('GOOGLE_OAUTH_CLIENT_SECRET');
+  const redirectUri = getEnv('GOOGLE_OAUTH_REDIRECT_URI');
+  const refreshToken = getEnv('GOOGLE_DRIVE_REFRESH_TOKEN');
+
+  const auth = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+  auth.setCredentials({ refresh_token: refreshToken });
+
+  return google.drive({ version: 'v3', auth });
+}
+
+function logGoogleError(err: any) {
+  console.error('❌ GOOGLE DRIVE ERROR FULL:');
+  if (err?.response?.data) {
+    console.error('response.data:', JSON.stringify(err.response.data, null, 2));
+  }
+  if (err?.response?.status) {
+    console.error('status:', err.response.status);
+  }
+  if (err?.errors) {
+    console.error('errors:', err.errors);
+  }
+  console.error('message:', err?.message);
+  console.error('stack:', err?.stack);
+}
+
+export type UploadResult = {
+  fileId: string;
+  webViewLink: string | null;
+  downloadLink: string | null;
+};
+
+export function getFolderIdByProgram(programType: string): string {
+  switch (programType) {
+    case 'primary':
+      return getEnv('GOOGLE_DRIVE_PRIMARY_FOLDER_ID');
+    case 'secondary':
+      return getEnv('GOOGLE_DRIVE_SECONDARY_FOLDER_ID');
+    default:
+      return getEnv('GOOGLE_DRIVE_TEACHERS_FOLDER_ID');
+  }
+}
+
+export async function createApplicationFolder(): Promise<{ folderId: string }> {
+  const rootFolderId = getEnv('GOOGLE_DRIVE_TEACHERS_FOLDER_ID');
+  return { folderId: rootFolderId };
+}
+
+export async function uploadFileToDrive(params: {
+  buffer: Buffer;
+  fileName: string;
+  mimeType?: string;
+  folderId: string;
+}): Promise<UploadResult> {
+  try {
+    const drive = getDriveClient();
+
+    const stream = Readable.from(params.buffer);
+
+    const res = await drive.files.create({
+      requestBody: {
+        name: params.fileName,
+        parents: [params.folderId],
+      },
+      media: {
+        mimeType: params.mimeType || 'application/octet-stream',
+        body: stream,
+      },
+      fields: 'id, webViewLink, webContentLink',
+    });
+
+    const fileId = res.data.id;
+    if (!fileId) {
+      throw new Error('Google не вернул id файла');
+    }
+
+    return {
+      fileId,
+      webViewLink: res.data.webViewLink ?? null,
+      downloadLink: res.data.webContentLink ?? null,
+    };
+  } catch (err: any) {
+    console.error('❌ uploadFileToDrive ERROR:');
+    logGoogleError(err);
+    throw new Error(err?.message || 'Ошибка загрузки файла в Google Drive');
+  }
+}
+
+export async function deleteFileFromDrive(params: {
+  fileId: string;
+}): Promise<void> {
+  try {
+    const drive = getDriveClient();
+    await drive.files.delete({ fileId: params.fileId });
+  } catch (err: any) {
+    console.error('❌ deleteFileFromDrive ERROR:');
+    logGoogleError(err);
+    throw new Error(err?.message || 'Ошибка удаления файла из Google Drive');
+  }
 }
 </file>
 

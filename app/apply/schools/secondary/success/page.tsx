@@ -8,9 +8,9 @@ export default function SecondarySchoolSuccessPage() {
           ✅
         </div>
 
-        <h1 className="text-2xl font-bold text-gray-900">Оплата прошла успешно</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Ваша заявка принята</h1>
         <p className="mt-3 text-gray-600">
-          Спасибо. Заявка для средней / старшей школы принята.
+          Регистрация будет завершена после осуществления оплаты. Спасибо за участие!
         </p>
         <p className="mt-2 text-gray-600">
           Если потребуется дополнительная информация, мы свяжемся с вами по указанному email.
