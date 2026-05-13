@@ -21,7 +21,6 @@ export default function TeacherForm() {
     selectedCourseIds: [],
     hasUploadedDocument: false,
     confirmedIdDocumentAttached: false,
-    consentPersonalData: false,
     consentTerms: false,
     consentPdProcessing: false,
     consentPdDistribution: false,
@@ -76,7 +75,6 @@ export default function TeacherForm() {
 
   function validateStep4() {
     return (
-      form.consentPersonalData &&
       form.consentTerms &&
       form.consentPdProcessing &&
       form.consentPdDistribution
@@ -214,8 +212,7 @@ export default function TeacherForm() {
 
   const isSubmitDisabled =
     step === 4 &&
-    (!form.consentPersonalData ||
-      !form.consentTerms ||
+    (!form.consentTerms ||
       !form.consentPdProcessing ||
       !form.consentPdDistribution);
 

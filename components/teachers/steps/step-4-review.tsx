@@ -27,7 +27,6 @@ type Step4ReviewProps = {
     taskAnswerA: string;
     taskAnswerB: string;
     taskAnswerC: string;
-    consentPersonalData: boolean;
     consentTerms: boolean;
     consentPdProcessing?: boolean;
     consentPdDistribution?: boolean;
@@ -98,13 +97,11 @@ export default function Step4Review({
   totalPriceRub,
   onChange,
 }: Step4ReviewProps) {
-  const policyLink = process.env.NEXT_PUBLIC_TEACHERS_POLICY_PDF_URL;
   const termsLink = process.env.NEXT_PUBLIC_TEACHERS_TERMS_PDF_URL;
   const pdProcessingLink = process.env.NEXT_PUBLIC_PD_PROCESSING_POLICY_URL;
   const pdDistributionLink = process.env.NEXT_PUBLIC_PD_DISTRIBUTION_POLICY_URL;
 
   const isAllSelected = !!(
-    values.consentPersonalData &&
     values.consentTerms &&
     values.consentPdProcessing &&
     values.consentPdDistribution &&
@@ -112,7 +109,6 @@ export default function Step4Review({
   );
 
   const handleSelectAll = (checked: boolean) => {
-    onChange('consentPersonalData', checked);
     onChange('consentTerms', checked);
     onChange('consentPdProcessing', checked);
     onChange('consentPdDistribution', checked);
@@ -237,39 +233,20 @@ export default function Step4Review({
                 </AgreementCard>
 
                 <AgreementCard
-                  checked={!!values.consentPersonalData}
-                  onChange={(checked) =>
-                    onChange('consentPersonalData', checked)
-                  }
-                  className="bg-slate-50"
-                >
-                  I agree to the{' '}
-                  <a
-                    href={policyLink || '#'}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="break-words font-medium text-slate-950 underline underline-offset-4"
-                  >
-                    processing of personal data
-                  </a>
-                  .
-                </AgreementCard>
-
-                <AgreementCard
                   checked={!!values.consentTerms}
                   onChange={(checked) => onChange('consentTerms', checked)}
                   className="bg-slate-50"
                 >
-                  I accept the{' '}
+                  Я подтверждаю, что внимательно изучил(-а) текст{' '}
                   <a
                     href={termsLink || '#'}
                     target="_blank"
                     rel="noreferrer"
                     className="break-words font-medium text-slate-950 underline underline-offset-4"
                   >
-                    terms and conditions
+                    Публичного договора-оферты
                   </a>
-                  .
+                  , мне понятны все его условия, и я принимаю их без оговорок и в полном объеме.
                 </AgreementCard>
 
                 <AgreementCard

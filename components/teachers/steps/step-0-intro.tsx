@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
 export default function Step0Intro({ onStart }: { onStart: () => void }) {
-  const policyLink = process.env.NEXT_PUBLIC_TEACHERS_POLICY_PDF_URL || '#';
   const termsLink = process.env.NEXT_PUBLIC_TEACHERS_TERMS_PDF_URL || '#';
   const pdProcessingLink = process.env.NEXT_PUBLIC_PD_PROCESSING_POLICY_URL || '#';
   const pdDistributionLink = process.env.NEXT_PUBLIC_PD_DISTRIBUTION_POLICY_URL || '#';
@@ -123,19 +122,15 @@ export default function Step0Intro({ onStart }: { onStart: () => void }) {
           <p className="mt-3 text-sm text-slate-600">
             Рекомендуем заранее ознакомиться с{' '}
             <a href={termsLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
-              Договором-оферты
-            </a>
-            ,{' '}
-            <a href={policyLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
-              LS политикой защиты и обработки персональных данных
+              Публичным договором-офертой
             </a>
             ,{' '}
             <a href={pdProcessingLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
-              Согласие на обработку и использование персональных данных кандидата
+              Согласием на обработку и использование персональных данных кандидата
             </a>
             {' '}и{' '}
             <a href={pdDistributionLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
-              Согласие на обработку персональных данных, разрешенных Субъектом персональных данных для распространения
+              Согласием на обработку персональных данных, разрешенных для распространения
             </a>.
           </p>
           <p className="mt-3 text-sm font-medium text-rose-600">

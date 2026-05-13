@@ -42,7 +42,6 @@ export default function SecondaryForm() {
     selectedCourseIds: [],
     hasUploadedDocument: false,
     confirmedIdDocumentAttached: false,
-    consentPersonalData: false,
     consentTerms: false,
     consentPdProcessing: false,
     consentPdDistribution: false,
@@ -89,7 +88,6 @@ export default function SecondaryForm() {
 
   function validateStep3() {
     return (
-      form.consentPersonalData &&
       form.consentTerms &&
       form.consentPdProcessing &&
       form.consentPdDistribution
@@ -195,8 +193,7 @@ export default function SecondaryForm() {
   const showBackButton = step > 0 && step < 4;
   const isSubmitDisabled =
     step === 3 &&
-    (!form.consentPersonalData ||
-      !form.consentTerms ||
+    (!form.consentTerms ||
       !form.consentPdProcessing ||
       !form.consentPdDistribution);
 

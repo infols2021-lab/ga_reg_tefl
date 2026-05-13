@@ -90,7 +90,6 @@ export async function POST(req: Request) {
       const { error } = await supabase
         .from('applications')
         .update({
-          consent_personal_data: body.data?.consentPersonalData ?? false,
           consent_terms: body.data?.consentTerms ?? false,
           consent_pd_processing: body.data?.consentPdProcessing ?? false,
           consent_pd_distribution: body.data?.consentPdDistribution ?? false,

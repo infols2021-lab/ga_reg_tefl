@@ -13,20 +13,17 @@ export default function Step3Review({
   totalPriceRub,
   onChange,
 }: any) {
-  const policyLink = process.env.NEXT_PUBLIC_SECONDARY_POLICY_PDF_URL || '#';
   const termsLink = process.env.NEXT_PUBLIC_SECONDARY_TERMS_PDF_URL || '#';
   const pdProcessingLink = process.env.NEXT_PUBLIC_PD_PROCESSING_POLICY_URL || '#';
   const pdDistributionLink = process.env.NEXT_PUBLIC_PD_DISTRIBUTION_POLICY_URL || '#';
 
   const isAllSelected = !!(
-    values.consentPersonalData &&
     values.consentTerms &&
     values.consentPdProcessing &&
     values.consentPdDistribution
   );
 
   const handleSelectAll = (checked: boolean) => {
-    onChange('consentPersonalData', checked);
     onChange('consentTerms', checked);
     onChange('consentPdProcessing', checked);
     onChange('consentPdDistribution', checked);
@@ -119,22 +116,6 @@ export default function Step3Review({
           <label className="flex items-start gap-3">
             <input
               type="checkbox"
-              checked={!!values.consentPersonalData}
-              onChange={(e) =>
-                onChange('consentPersonalData', e.currentTarget.checked)
-              }
-              className="mt-1 h-4 w-4 shrink-0 accent-black"
-            />
-            <span className="text-sm leading-6 text-slate-700">
-              Я согласен на{' '}
-              <a href={policyLink} target="_blank" className="underline">
-                обработку персональных данных
-              </a>
-            </span>
-          </label>
-          <label className="flex items-start gap-3">
-            <input
-              type="checkbox"
               checked={!!values.consentTerms}
               onChange={(e) =>
                 onChange('consentTerms', e.currentTarget.checked)
@@ -142,12 +123,14 @@ export default function Step3Review({
               className="mt-1 h-4 w-4 shrink-0 accent-black"
             />
             <span className="text-sm leading-6 text-slate-700">
-              Я принимаю{' '}
-              <a href={termsLink} target="_blank" className="underline">
-                условия и положения
+              Я подтверждаю, что внимательно изучил(-а) текст{' '}
+              <a href={termsLink} target="_blank" className="font-medium text-indigo-600 underline">
+                Публичного договора-оферты
               </a>
+              , мне понятны все его условия, и я принимаю их без оговорок и в полном объеме.
             </span>
           </label>
+          
           <label className="flex items-start gap-3">
             <input
               type="checkbox"
@@ -159,11 +142,12 @@ export default function Step3Review({
             />
             <span className="text-sm leading-6 text-slate-700">
               Я ознакомлен и согласен с{' '}
-              <a href={pdProcessingLink} target="_blank" className="underline">
-                Согласие на обработку и использование персональных данных кандидата
+              <a href={pdProcessingLink} target="_blank" className="font-medium text-indigo-600 underline">
+                Согласием на обработку и использование персональных данных кандидата
               </a>
             </span>
           </label>
+
           <label className="flex items-start gap-3">
             <input
               type="checkbox"
@@ -175,8 +159,8 @@ export default function Step3Review({
             />
             <span className="text-sm leading-6 text-slate-700">
               Я ознакомлен и согласен с{' '}
-              <a href={pdDistributionLink} target="_blank" className="underline">
-                Согласие на обработку персональных данных, разрешенных Субъектом персональных данных для распространения
+              <a href={pdDistributionLink} target="_blank" className="font-medium text-indigo-600 underline">
+                Согласием на обработку персональных данных, разрешенных Субъектом персональных данных для распространения
               </a>
             </span>
           </label>
