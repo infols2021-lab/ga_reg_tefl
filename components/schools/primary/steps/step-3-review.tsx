@@ -153,7 +153,7 @@ export default function Step3Review({
             <span className="text-sm leading-6 text-slate-700">
               Я ознакомлен и согласен с{' '}
               <a href={pdProcessingLink} target="_blank" className="underline">
-                Политикой обработки ПД
+                Согласие на обработку и использование персональных данных кандидата
               </a>
             </span>
           </label>
@@ -168,7 +168,7 @@ export default function Step3Review({
             <span className="text-sm leading-6 text-slate-700">
               Я ознакомлен и согласен с{' '}
               <a href={pdDistributionLink} target="_blank" className="underline">
-                Политикой распространения ПД
+                Согласие на обработку персональных данных, разрешенных Субъектом персональных данных для распространения
               </a>
             </span>
           </label>

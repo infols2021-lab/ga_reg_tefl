@@ -131,11 +131,11 @@ export default function Step0Intro({ onStart }: { onStart: () => void }) {
             </a>
             ,{' '}
             <a href={pdProcessingLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
-              Политикой обработки ПД
+              Согласие на обработку и использование персональных данных кандидата
             </a>
             {' '}и{' '}
             <a href={pdDistributionLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
-              Политикой распространения ПД
+              Согласие на обработку персональных данных, разрешенных Субъектом персональных данных для распространения
             </a>.
           </p>
           <p className="mt-3 text-sm font-medium text-rose-600">
