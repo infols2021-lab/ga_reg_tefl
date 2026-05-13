@@ -101,6 +101,8 @@ export async function POST(req: Request) {
         .update({
           consent_personal_data: body.data?.consentPersonalData ?? false,
           consent_terms: body.data?.consentTerms ?? false,
+          consent_pd_processing: body.data?.consentPdProcessing ?? false,
+          consent_pd_distribution: body.data?.consentPdDistribution ?? false,
           confirmed_id_document_attached: body.data?.confirmedIdDocumentAttached ?? false,
           current_step: 3,
         })

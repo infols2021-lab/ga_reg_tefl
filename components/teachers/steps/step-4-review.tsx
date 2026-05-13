@@ -29,6 +29,8 @@ type Step4ReviewProps = {
     taskAnswerC: string;
     consentPersonalData: boolean;
     consentTerms: boolean;
+    consentPdProcessing?: boolean;
+    consentPdDistribution?: boolean;
     reviewNotes?: string;
   };
   selectedCourses: ReviewCourseItem[];
@@ -69,13 +71,15 @@ function AgreementCard({
   checked,
   onChange,
   children,
+  className = "",
 }: {
   checked: boolean;
   onChange: (checked: boolean) => void;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <label className="flex min-w-0 items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+    <label className={`flex min-w-0 items-start gap-3 rounded-2xl border border-slate-200 px-4 py-4 ${className}`}>
       <Checkbox
         checked={checked}
         onChange={(e) => onChange(e.currentTarget.checked)}
@@ -96,6 +100,24 @@ export default function Step4Review({
 }: Step4ReviewProps) {
   const policyLink = process.env.NEXT_PUBLIC_TEACHERS_POLICY_PDF_URL;
   const termsLink = process.env.NEXT_PUBLIC_TEACHERS_TERMS_PDF_URL;
+  const pdProcessingLink = process.env.NEXT_PUBLIC_PD_PROCESSING_POLICY_URL;
+  const pdDistributionLink = process.env.NEXT_PUBLIC_PD_DISTRIBUTION_POLICY_URL;
+
+  const isAllSelected = !!(
+    values.consentPersonalData &&
+    values.consentTerms &&
+    values.consentPdProcessing &&
+    values.consentPdDistribution &&
+    values.confirmedIdDocumentAttached
+  );
+
+  const handleSelectAll = (checked: boolean) => {
+    onChange('consentPersonalData', checked);
+    onChange('consentTerms', checked);
+    onChange('consentPdProcessing', checked);
+    onChange('consentPdDistribution', checked);
+    onChange('confirmedIdDocumentAttached', checked);
+  };
 
   return (
     <div className="space-y-6">
@@ -207,10 +229,19 @@ export default function Step4Review({
 
               <div className="mt-4 space-y-4">
                 <AgreementCard
+                  checked={isAllSelected}
+                  onChange={handleSelectAll}
+                  className="bg-slate-100 font-semibold"
+                >
+                  Select all agreements and confirmations
+                </AgreementCard>
+
+                <AgreementCard
                   checked={!!values.consentPersonalData}
                   onChange={(checked) =>
                     onChange('consentPersonalData', checked)
                   }
+                  className="bg-slate-50"
                 >
                   I agree to the{' '}
                   <a
@@ -227,6 +258,7 @@ export default function Step4Review({
                 <AgreementCard
                   checked={!!values.consentTerms}
                   onChange={(checked) => onChange('consentTerms', checked)}
+                  className="bg-slate-50"
                 >
                   I accept the{' '}
                   <a
@@ -241,10 +273,45 @@ export default function Step4Review({
                 </AgreementCard>
 
                 <AgreementCard
+                  checked={!!values.consentPdProcessing}
+                  onChange={(checked) => onChange('consentPdProcessing', checked)}
+                  className="bg-slate-50"
+                >
+                  I agree to the{' '}
+                  <a
+                    href={pdProcessingLink || '#'}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="break-words font-medium text-slate-950 underline underline-offset-4"
+                  >
+                    Personal Data Processing Policy
+                  </a>
+                  .
+                </AgreementCard>
+
+                <AgreementCard
+                  checked={!!values.consentPdDistribution}
+                  onChange={(checked) => onChange('consentPdDistribution', checked)}
+                  className="bg-slate-50"
+                >
+                  I agree to the{' '}
+                  <a
+                    href={pdDistributionLink || '#'}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="break-words font-medium text-slate-950 underline underline-offset-4"
+                  >
+                    Personal Data Distribution Policy
+                  </a>
+                  .
+                </AgreementCard>
+
+                <AgreementCard
                   checked={!!values.confirmedIdDocumentAttached}
                   onChange={(checked) =>
                     onChange('confirmedIdDocumentAttached', checked)
                   }
+                  className="bg-slate-50"
                 >
                   I confirm that the required identification document has been
                   attached.

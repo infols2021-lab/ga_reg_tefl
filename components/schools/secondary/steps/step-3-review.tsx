@@ -15,6 +15,22 @@ export default function Step3Review({
 }: any) {
   const policyLink = process.env.NEXT_PUBLIC_SECONDARY_POLICY_PDF_URL || '#';
   const termsLink = process.env.NEXT_PUBLIC_SECONDARY_TERMS_PDF_URL || '#';
+  const pdProcessingLink = process.env.NEXT_PUBLIC_PD_PROCESSING_POLICY_URL || '#';
+  const pdDistributionLink = process.env.NEXT_PUBLIC_PD_DISTRIBUTION_POLICY_URL || '#';
+
+  const isAllSelected = !!(
+    values.consentPersonalData &&
+    values.consentTerms &&
+    values.consentPdProcessing &&
+    values.consentPdDistribution
+  );
+
+  const handleSelectAll = (checked: boolean) => {
+    onChange('consentPersonalData', checked);
+    onChange('consentTerms', checked);
+    onChange('consentPdProcessing', checked);
+    onChange('consentPdDistribution', checked);
+  };
 
   return (
     <div className="space-y-6">
@@ -86,7 +102,20 @@ export default function Step3Review({
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="text-lg font-semibold text-slate-900">Соглашения и согласия</h3>
+        
         <div className="mt-4 space-y-4">
+          <label className="flex items-start gap-3 rounded-lg bg-slate-50 p-3 border border-slate-200">
+            <input
+              type="checkbox"
+              checked={isAllSelected}
+              onChange={(e) => handleSelectAll(e.currentTarget.checked)}
+              className="mt-1 h-4 w-4 shrink-0 accent-black"
+            />
+            <span className="text-sm font-semibold leading-6 text-slate-900">
+              Выбрать всё (согласиться со всеми документами)
+            </span>
+          </label>
+
           <label className="flex items-start gap-3">
             <input
               type="checkbox"
@@ -116,6 +145,38 @@ export default function Step3Review({
               Я принимаю{' '}
               <a href={termsLink} target="_blank" className="underline">
                 условия и положения
+              </a>
+            </span>
+          </label>
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              checked={!!values.consentPdProcessing}
+              onChange={(e) =>
+                onChange('consentPdProcessing', e.currentTarget.checked)
+              }
+              className="mt-1 h-4 w-4 shrink-0 accent-black"
+            />
+            <span className="text-sm leading-6 text-slate-700">
+              Я ознакомлен и согласен с{' '}
+              <a href={pdProcessingLink} target="_blank" className="underline">
+                Политикой обработки ПД
+              </a>
+            </span>
+          </label>
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              checked={!!values.consentPdDistribution}
+              onChange={(e) =>
+                onChange('consentPdDistribution', e.currentTarget.checked)
+              }
+              className="mt-1 h-4 w-4 shrink-0 accent-black"
+            />
+            <span className="text-sm leading-6 text-slate-700">
+              Я ознакомлен и согласен с{' '}
+              <a href={pdDistributionLink} target="_blank" className="underline">
+                Политикой распространения ПД
               </a>
             </span>
           </label>

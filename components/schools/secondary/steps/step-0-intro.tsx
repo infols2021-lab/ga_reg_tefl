@@ -6,6 +6,8 @@ import Link from 'next/link';
 export default function Step0Intro({ onStart }: { onStart: () => void }) {
   const policyLink = process.env.NEXT_PUBLIC_SECONDARY_POLICY_PDF_URL || '#';
   const termsLink = process.env.NEXT_PUBLIC_SECONDARY_TERMS_PDF_URL || '#';
+  const pdProcessingLink = process.env.NEXT_PUBLIC_PD_PROCESSING_POLICY_URL || '#';
+  const pdDistributionLink = process.env.NEXT_PUBLIC_PD_DISTRIBUTION_POLICY_URL || '#';
 
   return (
     <div className="overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.10)]">
@@ -48,9 +50,17 @@ export default function Step0Intro({ onStart }: { onStart: () => void }) {
             <a href={termsLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
               Договором-оферты
             </a>
-            {' '}и{' '}
+            ,{' '}
             <a href={policyLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
               LS политикой защиты и обработки персональных данных
+            </a>
+            ,{' '}
+            <a href={pdProcessingLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
+              Политикой обработки ПД
+            </a>
+            {' '}и{' '}
+            <a href={pdDistributionLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
+              Политикой распространения ПД
             </a>.
           </p>
         </div>

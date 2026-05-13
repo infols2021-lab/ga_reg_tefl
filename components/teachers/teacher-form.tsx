@@ -21,6 +21,10 @@ export default function TeacherForm() {
     selectedCourseIds: [],
     hasUploadedDocument: false,
     confirmedIdDocumentAttached: false,
+    consentPersonalData: false,
+    consentTerms: false,
+    consentPdProcessing: false,
+    consentPdDistribution: false,
   });
 
   function setField(key: string, value: any) {
@@ -71,7 +75,12 @@ export default function TeacherForm() {
   }
 
   function validateStep4() {
-    return form.consentPersonalData && form.consentTerms;
+    return (
+      form.consentPersonalData &&
+      form.consentTerms &&
+      form.consentPdProcessing &&
+      form.consentPdDistribution
+    );
   }
 
   async function fetchCourses() {
@@ -204,7 +213,11 @@ export default function TeacherForm() {
   );
 
   const isSubmitDisabled =
-    step === 4 && (!form.consentPersonalData || !form.consentTerms);
+    step === 4 &&
+    (!form.consentPersonalData ||
+      !form.consentTerms ||
+      !form.consentPdProcessing ||
+      !form.consentPdDistribution);
 
   // Кнопка "Назад" скрыта на шагах 0 и 5
   const showBackButton = step > 0 && step < 5;

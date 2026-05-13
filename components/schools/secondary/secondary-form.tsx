@@ -42,6 +42,10 @@ export default function SecondaryForm() {
     selectedCourseIds: [],
     hasUploadedDocument: false,
     confirmedIdDocumentAttached: false,
+    consentPersonalData: false,
+    consentTerms: false,
+    consentPdProcessing: false,
+    consentPdDistribution: false,
   });
 
   function setField(key: string, value: any) {
@@ -84,7 +88,12 @@ export default function SecondaryForm() {
   }
 
   function validateStep3() {
-    return form.consentPersonalData && form.consentTerms;
+    return (
+      form.consentPersonalData &&
+      form.consentTerms &&
+      form.consentPdProcessing &&
+      form.consentPdDistribution
+    );
   }
 
   async function fetchExamLocations() {
@@ -184,7 +193,12 @@ export default function SecondaryForm() {
   const selectedCourses = courses.filter((c) => form.selectedCourseIds.includes(c.id));
   const totalPriceRub = selectedCourses.reduce((sum, c) => sum + (c.priceRub || 0), 0);
   const showBackButton = step > 0 && step < 4;
-  const isSubmitDisabled = step === 3 && (!form.consentPersonalData || !form.consentTerms);
+  const isSubmitDisabled =
+    step === 3 &&
+    (!form.consentPersonalData ||
+      !form.consentTerms ||
+      !form.consentPdProcessing ||
+      !form.consentPdDistribution);
 
   return (
     <div className="mx-auto max-w-4xl p-6">

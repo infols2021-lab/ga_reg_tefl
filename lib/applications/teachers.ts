@@ -129,8 +129,10 @@ export async function updateTeacherStep(
     const { error } = await supabase
       .from('applications')
       .update({
-        consent_personal_data: data.consentPersonalData,
-        consent_terms: data.consentTerms,
+        consent_personal_data: data.consentPersonalData ?? false,
+        consent_terms: data.consentTerms ?? false,
+        consent_pd_processing: data.consentPdProcessing ?? false,
+        consent_pd_distribution: data.consentPdDistribution ?? false,
         confirmed_id_document_attached: data.confirmedIdDocumentAttached,
         current_step: 4,
       })

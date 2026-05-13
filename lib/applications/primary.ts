@@ -124,6 +124,8 @@ export async function updatePrimaryStep(
       .update({
         consent_personal_data: data.consentPersonalData ?? false,
         consent_terms: data.consentTerms ?? false,
+        consent_pd_processing: data.consentPdProcessing ?? false,
+        consent_pd_distribution: data.consentPdDistribution ?? false,
         confirmed_id_document_attached: data.confirmedIdDocumentAttached ?? false,
         current_step: 3,
       })
