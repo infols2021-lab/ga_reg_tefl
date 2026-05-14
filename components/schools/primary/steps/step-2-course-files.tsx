@@ -57,6 +57,7 @@ export default function Step2CourseFiles({
         </div>
       </div>
 
+      {/* Секция загрузки документов временно деактивирована
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-5 py-4">
           <h2 className="text-lg font-semibold text-slate-900">Документы</h2>
@@ -87,6 +88,7 @@ export default function Step2CourseFiles({
           </label>
         </div>
       </div>
+      */}
     </div>
   );
 }

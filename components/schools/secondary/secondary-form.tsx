@@ -42,9 +42,11 @@ export default function SecondaryForm() {
     selectedCourseIds: [],
     hasUploadedDocument: false,
     confirmedIdDocumentAttached: false,
+    // 4 документа согласия
     consentTerms: false,
     consentPdProcessing: false,
-    consentPdDistribution: false,
+    consentPhotoVideo: false,
+    consentTransborder: false,
   });
 
   function setField(key: string, value: any) {
@@ -79,18 +81,15 @@ export default function SecondaryForm() {
   }
 
   function validateStep2() {
-    return (
-      form.selectedCourseIds.length > 0 &&
-      form.hasUploadedDocument &&
-      form.confirmedIdDocumentAttached
-    );
+    return form.selectedCourseIds.length > 0;
   }
 
   function validateStep3() {
     return (
       form.consentTerms &&
       form.consentPdProcessing &&
-      form.consentPdDistribution
+      form.consentPhotoVideo &&
+      form.consentTransborder
     );
   }
 
@@ -148,7 +147,7 @@ export default function SecondaryForm() {
         setStep(2);
       } else if (step === 2) {
         if (!validateStep2()) {
-          throw new Error('Выбери хотя бы один курс, загрузи документ и подтверди загрузку');
+          throw new Error('Выбери хотя бы один курс');
         }
         await update(id, 2);
         setStep(3);
@@ -162,7 +161,7 @@ export default function SecondaryForm() {
 
   async function handleSubmit() {
     try {
-      if (!validateStep3()) throw new Error('Подтверди согласия');
+      if (!validateStep3()) throw new Error('Подтверди все согласия');
       const id = applicationId;
       if (!id) throw new Error('Сначала создайте заявку');
 
@@ -195,7 +194,8 @@ export default function SecondaryForm() {
     step === 3 &&
     (!form.consentTerms ||
       !form.consentPdProcessing ||
-      !form.consentPdDistribution);
+      !form.consentPhotoVideo ||
+      !form.consentTransborder);
 
   return (
     <div className="mx-auto max-w-4xl p-6">

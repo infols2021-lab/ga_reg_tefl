@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
 export default function Step0Intro({ onStart }: { onStart: () => void }) {
-  const termsLink = process.env.NEXT_PUBLIC_TEACHERS_TERMS_PDF_URL || '#';
-  const pdProcessingLink = process.env.NEXT_PUBLIC_PD_PROCESSING_POLICY_URL || '#';
-  const pdDistributionLink = process.env.NEXT_PUBLIC_PD_DISTRIBUTION_POLICY_URL || '#';
+  const offerLink = process.env.NEXT_PUBLIC_LEGAL_OFFER_URL || '#';
+  const pdProcessingLink = process.env.NEXT_PUBLIC_LEGAL_PD_PROCESSING_URL || '#';
+  const transborderLink = process.env.NEXT_PUBLIC_LEGAL_TRANSBORDER_URL || '#';
+  const photoVideoLink = process.env.NEXT_PUBLIC_LEGAL_PHOTO_VIDEO_URL || '#';
 
   return (
     <div className="overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.10)]">
@@ -23,41 +24,21 @@ export default function Step0Intro({ onStart }: { onStart: () => void }) {
       </div>
 
       <div className="grid gap-6 p-6 lg:grid-cols-2">
-        {/* Шаг 1: Личные данные */}
         <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
           <h3 className="text-lg font-semibold text-slate-950">
             Шаг 1 — Ваши данные
           </h3>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Заполните основные личные и профессиональные данные: имя, фамилию, дату рождения, 
-            адрес, страну, телефон, уровень образования и текущий уровень английского.
+            Заполните личные и профессиональные данные: образование и уровень английского.
           </p>
         </div>
 
-        {/* Шаг 2: Выбор курсов и файлы */}
         <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
           <h3 className="text-lg font-semibold text-slate-950">
-            Шаг 2 — Выбор курсов и документы
+            Шаг 2 — Выбор курсов
           </h3>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Выберите один или несколько курсов из трех блоков:
-          </p>
-          <ul className="mt-3 space-y-2 text-sm text-slate-600">
-            <li>
-              <strong>Специализация / Модульные курсы</strong> — 
-              для повышения квалификации в конкретных областях преподавания (Level 3–5).
-            </li>
-            <li>
-              <strong>Сертификация / TEFL квалификация</strong> — 
-              официальное подтверждение ваших навыков (Level 3 и Level 5 Certificate).
-            </li>
-            <li>
-              <strong>Диплом / Эквивалент CELTA</strong> — 
-              получение образования, сопоставимого с CELTA (Level 5 Diploma).
-            </li>
-          </ul>
-          <p className="mt-3 text-sm text-slate-500">
-            Также загрузите скан удостоверения личности.
+            Выберите курсы из трех блоков: Специализация, Сертификация или Диплом.
           </p>
           <p className="mt-3">
             <Link href="/courses" className="text-sm font-medium text-indigo-600 underline">
@@ -66,87 +47,36 @@ export default function Step0Intro({ onStart }: { onStart: () => void }) {
           </p>
         </div>
 
-        {/* Шаг 3: Подробное описание SECTION C */}
         <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
           <h3 className="text-lg font-semibold text-slate-950">
-            Шаг 3 — Персональное заявление и письменные задания
+            Шаг 3 — Письменные задания
           </h3>
-          
-          <div className="mt-3 space-y-3 text-sm leading-6 text-slate-600">
-            <div>
-              <p className="font-medium text-slate-800">SECTION C: Your Personal Statement</p>
-              <p>
-                Напишите примерно 500 слов, объяснив:
-              </p>
-              <ul className="list-disc pl-5 mt-1 space-y-1">
-                <li>почему вы выбрали этот курс и что надеетесь получить;</li>
-                <li>ваши текущие сильные и слабые стороны как преподавателя английского языка ИЛИ почему вы считаете себя подходящим для преподавания английского.</li>
-              </ul>
-              <p className="mt-2 text-xs text-slate-500">
-                Обратите внимание: грамматика, словарный запас, орфография и пунктуация будут учитываться при рассмотрении вашей заявки.
-              </p>
-            </div>
+          <p className="mt-2 text-sm leading-6 text-slate-600 text-slate-800">
+            Подготовьте Personal Statement (500 слов) и ответы на три вопроса по методике преподавания (Pre-enrolment tasks).
+          </p>
+        </div>
 
-            <div className="border-t border-slate-200 pt-3">
-              <p className="font-medium text-slate-800">Pre-enrolment tasks</p>
-              <p>
-                На каждый из трёх вопросов напишите 120–150 слов:
-              </p>
-              <ol className="list-decimal pl-5 mt-1 space-y-2">
-                <li>
-                  <span className="font-medium">A. Reading vs Writing.</span> Какое умение, по вашему мнению, сложнее освоить: чтение или письмо? Почему?
-                </li>
-                <li>
-                  <span className="font-medium">B. Contractions.</span> ‘Can’t’ — сокращённая форма ‘cannot’. Почему важно обучать сокращениям на уроках английского языка?
-                </li>
-                <li>
-                  <span className="font-medium">C. Fluency vs Accuracy.</span> Что важнее при говорении на английском: беглость или точность? Почему?
-                </li>
-              </ol>
-              <p className="mt-2 text-xs text-slate-500">
-                Ваши ответы также оцениваются по качеству языка и аргументации.
-              </p>
-            </div>
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
+          <h3 className="text-lg font-semibold text-slate-950">
+            Шаг 4 — Проверка и согласия
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Проверьте данные и ознакомьтесь с документами:
+          </p>
+          <div className="mt-3 space-y-2 text-sm text-slate-600">
+            <p>• <a href={offerLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">Публичный договор-оферта</a></p>
+            <p>• <a href={pdProcessingLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">Согласие на обработку ПД</a></p>
+            <p>• <a href={transborderLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">Согласие на трансграничную передачу ПД</a></p>
+            <p>• <a href={photoVideoLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">Согласие на использование фото- и видео</a></p>
           </div>
         </div>
 
-        {/* Шаг 4: Проверка */}
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
-          <h3 className="text-lg font-semibold text-slate-950">
-            Шаг 4 — Проверка заявки
-          </h3>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            Внимательно проверьте все введённые данные, выбранные курсы и 
-            итоговую стоимость. Примите согласия и соглашения.
-          </p>
-          <p className="mt-3 text-sm text-slate-600">
-            Рекомендуем заранее ознакомиться с{' '}
-            <a href={termsLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
-              Публичным договором-офертой
-            </a>
-            ,{' '}
-            <a href={pdProcessingLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
-              Согласием на обработку и использование персональных данных кандидата
-            </a>
-            {' '}и{' '}
-            <a href={pdDistributionLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
-              Согласием на обработку персональных данных, разрешенных для распространения
-            </a>.
-          </p>
-          <p className="mt-3 text-sm font-medium text-rose-600">
-            После перехода к оплате редактирование станет недоступно.
-          </p>
-        </div>
-
-        {/* Шаг 5: Оплата */}
         <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5 lg:col-span-2">
           <h3 className="text-lg font-semibold text-slate-950">
             Шаг 5 — Оплата
           </h3>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            После успешной отправки вы получите QR-код для оплаты через 
-            банковское приложение. Следуйте инструкциям, укажите точную сумму 
-            и ФИО плательщика.
+            После успешной отправки вы получите QR-код для оплаты через банковское приложение.
           </p>
         </div>
       </div>

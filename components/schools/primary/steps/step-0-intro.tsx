@@ -4,9 +4,11 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
 export default function Step0Intro({ onStart }: { onStart: () => void }) {
-  const termsLink = process.env.NEXT_PUBLIC_PRIMARY_TERMS_PDF_URL || '#';
-  const pdProcessingLink = process.env.NEXT_PUBLIC_PD_PROCESSING_POLICY_URL || '#';
-  const pdDistributionLink = process.env.NEXT_PUBLIC_PD_DISTRIBUTION_POLICY_URL || '#';
+  // Используем общие ENV для всех типов заявок
+  const offerLink = process.env.NEXT_PUBLIC_LEGAL_OFFER_URL || '#';
+  const pdProcessingLink = process.env.NEXT_PUBLIC_LEGAL_PD_PROCESSING_URL || '#';
+  const transborderLink = process.env.NEXT_PUBLIC_LEGAL_TRANSBORDER_URL || '#';
+  const photoVideoLink = process.env.NEXT_PUBLIC_LEGAL_PHOTO_VIDEO_URL || '#';
 
   return (
     <div className="overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.10)]">
@@ -29,9 +31,10 @@ export default function Step0Intro({ onStart }: { onStart: () => void }) {
           </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
-          <h3 className="text-lg font-semibold text-slate-950">Шаг 2 — Выбор курса и документы</h3>
+          <h3 className="text-lg font-semibold text-slate-950">Шаг 2 — Выбор курса</h3>
           <p className="mt-2 text-sm text-slate-600">
-            Выберите один или несколько курсов из предложенного списка. Загрузите скан документа (паспорт или свидетельство о рождении).
+            Выберите один или несколько курсов из предложенного списка. 
+            {/* Описание загрузки документов скрыто */}
           </p>
           <p className="mt-3">
             <Link href="/courses" className="text-sm font-medium text-indigo-600 underline">
@@ -42,22 +45,30 @@ export default function Step0Intro({ onStart }: { onStart: () => void }) {
         <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
           <h3 className="text-lg font-semibold text-slate-950">Шаг 3 — Проверка и согласия</h3>
           <p className="mt-2 text-sm text-slate-600">
-            Внимательно проверьте все введённые данные, выбранные курсы и итоговую стоимость. Примите согласия и соглашения.
+            Внимательно проверьте все введённые данные и выбранные курсы. Вам потребуется подтвердить:
           </p>
-          <p className="mt-3 text-sm text-slate-600">
-            Рекомендуем заранее ознакомиться с{' '}
-            <a href={termsLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
-              Публичным договором-офертой
-            </a>
-            ,{' '}
-            <a href={pdProcessingLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
-              Согласием на обработку и использование персональных данных кандидата
-            </a>
-            {' '}и{' '}
-            <a href={pdDistributionLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
-              Согласием на обработку персональных данных, разрешенных для распространения
-            </a>.
-          </p>
+          <div className="mt-3 space-y-2 text-sm text-slate-600">
+            <p>
+              • <a href={offerLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
+                Публичный договор-оферта
+              </a>
+            </p>
+            <p>
+              • <a href={pdProcessingLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
+                Согласие на обработку ПД
+              </a>
+            </p>
+            <p>
+              • <a href={transborderLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
+                Согласие на трансграничную передачу ПД
+              </a>
+            </p>
+            <p>
+              • <a href={photoVideoLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
+                Согласие на использование фото- и видео
+              </a>
+            </p>
+          </div>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
           <h3 className="text-lg font-semibold text-slate-950">Шаг 4 — Оплата</h3>

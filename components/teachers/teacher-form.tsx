@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import LoadingOverlay from '@/components/ui/loading-overlay';
 
 export default function TeacherForm() {
-  const [step, setStep] = useState(0); // начинаем с 0 (инструкция)
+  const [step, setStep] = useState(0); 
   const [applicationId, setApplicationId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [courses, setCourses] = useState<any[]>([]);
@@ -21,9 +21,11 @@ export default function TeacherForm() {
     selectedCourseIds: [],
     hasUploadedDocument: false,
     confirmedIdDocumentAttached: false,
+    // 4 документа согласия
     consentTerms: false,
     consentPdProcessing: false,
-    consentPdDistribution: false,
+    consentPhotoVideo: false,
+    consentTransborder: false,
   });
 
   function setField(key: string, value: any) {
@@ -57,11 +59,7 @@ export default function TeacherForm() {
   }
 
   function validateStep2() {
-    return (
-      form.selectedCourseIds.length > 0 &&
-      form.hasUploadedDocument &&
-      form.confirmedIdDocumentAttached
-    );
+    return form.selectedCourseIds.length > 0;
   }
 
   function validateStep3() {
@@ -77,7 +75,8 @@ export default function TeacherForm() {
     return (
       form.consentTerms &&
       form.consentPdProcessing &&
-      form.consentPdDistribution
+      form.consentPhotoVideo &&
+      form.consentTransborder
     );
   }
 
@@ -133,22 +132,8 @@ export default function TeacherForm() {
         await update(id, 1);
         setStep(2);
       } else if (step === 2) {
-        if (!form.selectedCourseIds.length && !form.hasUploadedDocument) {
-          throw new Error(
-            'Выбери хотя бы один курс, загрузи документ и подтверди загрузку'
-          );
-        }
-
         if (!form.selectedCourseIds.length) {
           throw new Error('Выбери хотя бы один курс');
-        }
-
-        if (!form.hasUploadedDocument) {
-          throw new Error('Сначала загрузи документ');
-        }
-
-        if (!form.confirmedIdDocumentAttached) {
-          throw new Error('Подтверди, что документ загружен');
         }
 
         await update(id, 2);
@@ -167,9 +152,8 @@ export default function TeacherForm() {
 
   async function handleSubmit() {
     try {
-      if (!validateStep4()) throw new Error('Подтверди согласия');
+      if (!validateStep4()) throw new Error('Подтверди все согласия');
 
-      // Подтверждение финальной отправки
       const confirmed = window.confirm(
         '⚠️ После перехода на этап оплаты вы больше не сможете редактировать данные заявки.\n\nУбедитесь, что вся информация введена верно.'
       );
@@ -214,9 +198,9 @@ export default function TeacherForm() {
     step === 4 &&
     (!form.consentTerms ||
       !form.consentPdProcessing ||
-      !form.consentPdDistribution);
+      !form.consentPhotoVideo ||
+      !form.consentTransborder);
 
-  // Кнопка "Назад" скрыта на шагах 0 и 5
   const showBackButton = step > 0 && step < 5;
 
   return (

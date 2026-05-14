@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -10,28 +11,7 @@ export type ReviewCourseItem = {
 };
 
 type Step4ReviewProps = {
-  values: {
-    firstName: string;
-    surname: string;
-    email: string;
-    dateOfBirth: string;
-    addressLine: string;
-    country: string;
-    phoneNumber: string;
-    educationHistory: string;
-    englishLevel: string;
-    currentTeachingRole: string;
-    teachingExperience: string;
-    confirmedIdDocumentAttached: boolean;
-    personalStatement: string;
-    taskAnswerA: string;
-    taskAnswerB: string;
-    taskAnswerC: string;
-    consentTerms: boolean;
-    consentPdProcessing?: boolean;
-    consentPdDistribution?: boolean;
-    reviewNotes?: string;
-  };
+  values: any;
   selectedCourses: ReviewCourseItem[];
   totalPriceRub: number;
   onChange: (key: string, value: any) => void;
@@ -78,10 +58,11 @@ function AgreementCard({
   className?: string;
 }) {
   return (
-    <label className={`flex min-w-0 items-start gap-3 rounded-2xl border border-slate-200 px-4 py-4 ${className}`}>
+    <label className={`flex min-w-0 cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 px-4 py-4 ${className}`}>
       <Checkbox
         checked={checked}
-        onChange={(e) => onChange(e.currentTarget.checked)}
+        // Используем onChange и типизируем событие для устранения ошибки TS
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.checked)}
         className="mt-0.5 h-5 w-5 shrink-0 rounded border-slate-400 text-slate-900"
       />
       <span className="min-w-0 break-words text-sm leading-6 text-slate-800">
@@ -97,22 +78,23 @@ export default function Step4Review({
   totalPriceRub,
   onChange,
 }: Step4ReviewProps) {
-  const termsLink = process.env.NEXT_PUBLIC_TEACHERS_TERMS_PDF_URL;
-  const pdProcessingLink = process.env.NEXT_PUBLIC_PD_PROCESSING_POLICY_URL;
-  const pdDistributionLink = process.env.NEXT_PUBLIC_PD_DISTRIBUTION_POLICY_URL;
+  const offerLink = process.env.NEXT_PUBLIC_LEGAL_OFFER_URL || '#';
+  const pdProcessingLink = process.env.NEXT_PUBLIC_LEGAL_PD_PROCESSING_URL || '#';
+  const photoVideoLink = process.env.NEXT_PUBLIC_LEGAL_PHOTO_VIDEO_URL || '#';
+  const transborderLink = process.env.NEXT_PUBLIC_LEGAL_TRANSBORDER_URL || '#';
 
   const isAllSelected = !!(
     values.consentTerms &&
     values.consentPdProcessing &&
-    values.consentPdDistribution &&
-    values.confirmedIdDocumentAttached
+    values.consentPhotoVideo &&
+    values.consentTransborder
   );
 
   const handleSelectAll = (checked: boolean) => {
     onChange('consentTerms', checked);
     onChange('consentPdProcessing', checked);
-    onChange('consentPdDistribution', checked);
-    onChange('confirmedIdDocumentAttached', checked);
+    onChange('consentPhotoVideo', checked);
+    onChange('consentTransborder', checked);
   };
 
   return (
@@ -126,8 +108,7 @@ export default function Step4Review({
             Review your application
           </h2>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-            Please check your personal details, selected courses and final
-            information carefully before submission.
+            Please check your personal details and selected courses carefully before submission.
           </p>
         </div>
 
@@ -147,14 +128,7 @@ export default function Step4Review({
                 <ReviewItem label="Country" value={values.country} />
                 <ReviewItem label="Phone number" value={values.phoneNumber} />
                 <ReviewItem label="English level" value={values.englishLevel} />
-                <ReviewItem
-                  label="Current teaching role"
-                  value={values.currentTeachingRole}
-                />
-                <ReviewItem
-                  label="Document attached"
-                  value={values.confirmedIdDocumentAttached ? 'Yes' : 'No'}
-                />
+                <ReviewItem label="Current teaching role" value={values.currentTeachingRole} />
               </div>
             </div>
 
@@ -162,10 +136,6 @@ export default function Step4Review({
               <h3 className="text-lg font-semibold text-slate-950">
                 Comment to the application
               </h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                You can leave an optional comment for the team.
-              </p>
-
               <div className="mt-4">
                 <Textarea
                   rows={5}
@@ -239,7 +209,7 @@ export default function Step4Review({
                 >
                   Я подтверждаю, что внимательно изучил(-а) текст{' '}
                   <a
-                    href={termsLink || '#'}
+                    href={offerLink}
                     target="_blank"
                     rel="noreferrer"
                     className="break-words font-medium text-slate-950 underline underline-offset-4"
@@ -256,42 +226,45 @@ export default function Step4Review({
                 >
                   I agree to the{' '}
                   <a
-                    href={pdProcessingLink || '#'}
+                    href={pdProcessingLink}
                     target="_blank"
                     rel="noreferrer"
                     className="break-words font-medium text-slate-950 underline underline-offset-4"
                   >
                     Personal Data Processing Policy
-                  </a>
-                  .
+                  </a>.
                 </AgreementCard>
 
                 <AgreementCard
-                  checked={!!values.consentPdDistribution}
-                  onChange={(checked) => onChange('consentPdDistribution', checked)}
+                  checked={!!values.consentPhotoVideo}
+                  onChange={(checked) => onChange('consentPhotoVideo', checked)}
                   className="bg-slate-50"
                 >
                   I agree to the{' '}
                   <a
-                    href={pdDistributionLink || '#'}
+                    href={photoVideoLink}
                     target="_blank"
                     rel="noreferrer"
                     className="break-words font-medium text-slate-950 underline underline-offset-4"
                   >
-                    Personal Data Distribution Policy
-                  </a>
-                  .
+                    Photo and Video Materials Usage Policy
+                  </a>.
                 </AgreementCard>
 
                 <AgreementCard
-                  checked={!!values.confirmedIdDocumentAttached}
-                  onChange={(checked) =>
-                    onChange('confirmedIdDocumentAttached', checked)
-                  }
+                  checked={!!values.consentTransborder}
+                  onChange={(checked) => onChange('consentTransborder', checked)}
                   className="bg-slate-50"
                 >
-                  I confirm that the required identification document has been
-                  attached.
+                  I agree to the{' '}
+                  <a
+                    href={transborderLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="break-words font-medium text-slate-950 underline underline-offset-4"
+                  >
+                    Cross-border Personal Data Transfer Policy
+                  </a>.
                 </AgreementCard>
               </div>
             </div>

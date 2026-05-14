@@ -13,20 +13,23 @@ export default function Step3Review({
   totalPriceRub,
   onChange,
 }: any) {
-  const termsLink = process.env.NEXT_PUBLIC_PRIMARY_TERMS_PDF_URL || '#';
-  const pdProcessingLink = process.env.NEXT_PUBLIC_PD_PROCESSING_POLICY_URL || '#';
-  const pdDistributionLink = process.env.NEXT_PUBLIC_PD_DISTRIBUTION_POLICY_URL || '#';
+  const offerLink = process.env.NEXT_PUBLIC_LEGAL_OFFER_URL || '#';
+  const pdProcessingLink = process.env.NEXT_PUBLIC_LEGAL_PD_PROCESSING_URL || '#';
+  const photoVideoLink = process.env.NEXT_PUBLIC_LEGAL_PHOTO_VIDEO_URL || '#';
+  const transborderLink = process.env.NEXT_PUBLIC_LEGAL_TRANSBORDER_URL || '#';
 
   const isAllSelected = !!(
     values.consentTerms &&
     values.consentPdProcessing &&
-    values.consentPdDistribution
+    values.consentPhotoVideo &&
+    values.consentTransborder
   );
 
   const handleSelectAll = (checked: boolean) => {
     onChange('consentTerms', checked);
     onChange('consentPdProcessing', checked);
-    onChange('consentPdDistribution', checked);
+    onChange('consentPhotoVideo', checked);
+    onChange('consentTransborder', checked);
   };
 
   return (
@@ -59,12 +62,7 @@ export default function Step3Review({
             <span className="text-xs font-medium uppercase text-slate-500">Телефон</span>
             <p className="text-sm text-slate-900">{values.phone}</p>
           </div>
-          <div>
-            <span className="text-xs font-medium uppercase text-slate-500">Документ</span>
-            <p className="text-sm text-slate-900">
-              {values.confirmedIdDocumentAttached ? 'Загружен' : 'Не загружен'}
-            </p>
-          </div>
+          {/* Статус документа скрыт */}
         </div>
 
         <h3 className="mt-6 text-lg font-semibold text-slate-900">Выбранные курсы</h3>
@@ -119,7 +117,7 @@ export default function Step3Review({
             />
             <span className="text-sm leading-6 text-slate-700">
               Я подтверждаю, что внимательно изучил(-а) текст{' '}
-              <a href={termsLink} target="_blank" className="font-medium text-indigo-600 underline">
+              <a href={offerLink} target="_blank" className="font-medium text-indigo-600 underline">
                 Публичного договора-оферты
               </a>
               , мне понятны все его условия, и я принимаю их без оговорок и в полном объеме.
@@ -136,7 +134,7 @@ export default function Step3Review({
             <span className="text-sm leading-6 text-slate-700">
               Я ознакомлен и согласен с{' '}
               <a href={pdProcessingLink} target="_blank" className="font-medium text-indigo-600 underline">
-                Согласием на обработку и использование персональных данных кандидата
+                Согласием на обработку и использование персональных данных
               </a>
             </span>
           </label>
@@ -144,14 +142,29 @@ export default function Step3Review({
           <label className="flex items-start gap-3">
             <input
               type="checkbox"
-              checked={!!values.consentPdDistribution}
-              onChange={(e) => onChange('consentPdDistribution', e.currentTarget.checked)}
+              checked={!!values.consentPhotoVideo}
+              onChange={(e) => onChange('consentPhotoVideo', e.currentTarget.checked)}
               className="mt-1 h-4 w-4 shrink-0 accent-black"
             />
             <span className="text-sm leading-6 text-slate-700">
               Я ознакомлен и согласен с{' '}
-              <a href={pdDistributionLink} target="_blank" className="font-medium text-indigo-600 underline">
-                Согласием на обработку персональных данных, разрешенных Субъектом персональных данных для распространения
+              <a href={photoVideoLink} target="_blank" className="font-medium text-indigo-600 underline">
+                Согласием на использование фото- и видео материалов
+              </a>
+            </span>
+          </label>
+
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              checked={!!values.consentTransborder}
+              onChange={(e) => onChange('consentTransborder', e.currentTarget.checked)}
+              className="mt-1 h-4 w-4 shrink-0 accent-black"
+            />
+            <span className="text-sm leading-6 text-slate-700">
+              Я ознакомлен и согласен с{' '}
+              <a href={transborderLink} target="_blank" className="font-medium text-indigo-600 underline">
+                Согласием на трансграничную передачу персональных данных
               </a>
             </span>
           </label>

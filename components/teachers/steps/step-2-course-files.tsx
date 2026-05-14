@@ -27,7 +27,6 @@ export default function Step2({
 }: any) {
   const selected = values.selectedCourseIds || [];
 
-  // Группировка курсов по блокам с учётом порядка
   const blocks: { label: string; key: string; courses: any[] }[] = [];
   const seen = new Set<string>();
   for (const course of courses) {
@@ -44,7 +43,6 @@ export default function Step2({
     if (block) block.courses.push(course);
   }
 
-  // Отображаем только те блоки, в которых есть курсы
   const visibleBlocks = blocks.filter((b) => b.courses.length > 0);
 
   return (
@@ -115,6 +113,7 @@ export default function Step2({
         ))}
       </div>
 
+      {/* Секция загрузки документов временно деактивирована
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-5 py-4">
           <h2 className="text-lg font-semibold text-slate-900">
@@ -157,6 +156,7 @@ export default function Step2({
           </label>
         </div>
       </div>
+      */}
     </div>
   );
 }

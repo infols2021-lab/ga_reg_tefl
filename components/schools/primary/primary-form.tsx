@@ -39,11 +39,14 @@ export default function PrimaryForm() {
     phone: '',
     examLocationId: '',
     selectedCourseIds: [],
+    // Состояние файлов оставляем для совместимости, но не требуем в валидации
     hasUploadedDocument: false,
     confirmedIdDocumentAttached: false,
-    consentTerms: false,
-    consentPdProcessing: false,
-    consentPdDistribution: false,
+    // 4 документа согласия
+    consentTerms: false,           // Публичная оферта
+    consentPdProcessing: false,    // Обработка ПД
+    consentPhotoVideo: false,      // Фото и видео
+    consentTransborder: false,     // Трансграничная передача
   });
 
   function setField(key: string, value: any) {
@@ -76,18 +79,17 @@ export default function PrimaryForm() {
   }
 
   function validateStep2() {
-    return (
-      form.selectedCourseIds.length > 0 &&
-      form.hasUploadedDocument &&
-      form.confirmedIdDocumentAttached
-    );
+    // Теперь требуем только выбор курса
+    return form.selectedCourseIds.length > 0;
   }
 
   function validateStep3() {
+    // Проверка всех 4 документов
     return (
       form.consentTerms &&
       form.consentPdProcessing &&
-      form.consentPdDistribution
+      form.consentPhotoVideo &&
+      form.consentTransborder
     );
   }
 
@@ -141,7 +143,7 @@ export default function PrimaryForm() {
         setStep(2);
       } else if (step === 2) {
         if (!validateStep2()) {
-          throw new Error('Выбери хотя бы один курс, загрузи документ и подтверди загрузку');
+          throw new Error('Выбери хотя бы один курс');
         }
         await update(id, 2);
         setStep(3);
@@ -155,7 +157,7 @@ export default function PrimaryForm() {
 
   async function handleSubmit() {
     try {
-      if (!validateStep3()) throw new Error('Подтверди согласия');
+      if (!validateStep3()) throw new Error('Подтверди все согласия');
       const id = applicationId;
       if (!id) throw new Error('Сначала создайте заявку');
 
@@ -188,7 +190,8 @@ export default function PrimaryForm() {
     step === 3 &&
     (!form.consentTerms ||
       !form.consentPdProcessing ||
-      !form.consentPdDistribution);
+      !form.consentPhotoVideo ||
+      !form.consentTransborder);
 
   return (
     <div className="mx-auto max-w-4xl p-6">
