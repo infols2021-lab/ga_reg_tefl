@@ -149,7 +149,7 @@ export default function Step3Review({
             <span className="text-sm leading-6 text-slate-700">
               Я ознакомлен и согласен с{' '}
               <a href={photoVideoLink} target="_blank" className="font-medium text-indigo-600 underline">
-                Согласием на использование фото- и видео материалов
+                Согласием на использование фото и видео материалов
               </a>
             </span>
           </label>

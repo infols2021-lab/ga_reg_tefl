@@ -203,21 +203,21 @@ export default function Step4Review({
                 </AgreementCard>
 
                 <AgreementCard
-                  checked={!!values.consentTerms}
-                  onChange={(checked) => onChange('consentTerms', checked)}
-                  className="bg-slate-50"
-                >
-                  Я подтверждаю, что внимательно изучил(-а) текст{' '}
-                  <a
-                    href={offerLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="break-words font-medium text-slate-950 underline underline-offset-4"
-                  >
-                    Публичного договора-оферты
-                  </a>
-                  , мне понятны все его условия, и я принимаю их без оговорок и в полном объеме.
-                </AgreementCard>
+  checked={!!values.consentTerms}
+  onChange={(checked) => onChange('consentTerms', checked)}
+  className="bg-slate-50"
+>
+  I confirm that I have carefully reviewed the text of the{' '}
+  <a
+    href={offerLink}
+    target="_blank"
+    rel="noreferrer"
+    className="break-words font-medium text-slate-950 underline underline-offset-4"
+  >
+    Public Offer Agreement
+  </a>
+  , I understand all its terms, and I accept them without reservations and in full.
+</AgreementCard>
 
                 <AgreementCard
                   checked={!!values.consentPdProcessing}

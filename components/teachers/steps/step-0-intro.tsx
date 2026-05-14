@@ -64,10 +64,10 @@ export default function Step0Intro({ onStart }: { onStart: () => void }) {
             Проверьте данные и ознакомьтесь с документами:
           </p>
           <div className="mt-3 space-y-2 text-sm text-slate-600">
-            <p>• <a href={offerLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">Публичный договор-оферта</a></p>
-            <p>• <a href={pdProcessingLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">Согласие на обработку ПД</a></p>
-            <p>• <a href={transborderLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">Согласие на трансграничную передачу ПД</a></p>
-            <p>• <a href={photoVideoLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">Согласие на использование фото- и видео</a></p>
+            <p>• <a href={offerLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">Публичный договор-оферты</a></p>
+            <p>• <a href={pdProcessingLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">Согласие на обработку персональных данных</a></p>
+            <p>• <a href={transborderLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">Согласие на трансграничную передачу персональных данных</a></p>
+            <p>• <a href={photoVideoLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">Согласие на использование фото и видео</a></p>
           </div>
         </div>
 

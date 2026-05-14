@@ -50,22 +50,22 @@ export default function Step0Intro({ onStart }: { onStart: () => void }) {
           <div className="mt-3 space-y-2 text-sm text-slate-600">
             <p>
               • <a href={offerLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
-                Публичный договор-оферта
+                Публичный договор-оферты
               </a>
             </p>
             <p>
               • <a href={pdProcessingLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
-                Согласие на обработку ПД
+                Согласие на обработку персональных данных
               </a>
             </p>
             <p>
               • <a href={transborderLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
-                Согласие на трансграничную передачу ПД
+                Согласие на трансграничную передачу персональных данных
               </a>
             </p>
             <p>
               • <a href={photoVideoLink} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 underline">
-                Согласие на использование фото- и видео
+                Согласие на использование фото и видео
               </a>
             </p>
           </div>
